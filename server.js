@@ -5,7 +5,7 @@ const fs = require('fs');
 const { exec, execFile } = require('child_process');
 const { randomUUID } = require('crypto');
 
-const PORT = 3000;
+const PORT = process.env.PORT || process.argv[2] || 3000;
 const BASE = __dirname;
 const UPLOADS = path.join(BASE, 'uploads');
 const TRICKS_FILE = path.join(BASE, 'data', 'tricks.json');
