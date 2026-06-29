@@ -100,6 +100,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .tree-row.drop-target{background:var(--accent-dim);outline:1px dashed var(--accent);outline-offset:-1px}
 .card.dragging{opacity:.4}
 
+.detail-drag-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:grab;border-radius:4px;color:var(--text2);vertical-align:middle;margin-left:8px;transition:all .15s}
+.detail-drag-icon:hover{color:var(--text);background:rgba(255,255,255,.08)}
+.detail-drag-icon:active{cursor:grabbing}
+.detail-drag-icon.dragging{opacity:.4}
+
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -118,6 +123,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .grid{grid-template-columns:1fr}
   .search-input{width:100px}
 }
+
 </style>
 </head>
 <body>
@@ -142,6 +148,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <input type="text" id="pathInput" placeholder="输入服务器文件夹路径，例如 D:\Videos 或 \\192.168.1.1\Share\folder" style="flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;outline:none">
         <button class="btn btn-primary" id="openBtn">打开</button>
         <button class="btn btn-ghost btn-sm" id="refreshBtn" style="display:none">刷新</button>
+        <button class="btn btn-ghost btn-sm" id="releaseBtn" style="display:none;color:var(--red)">解除占用</button>
       </div>
       <div id="thumbControls" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
         <span style="font-size:12px;color:var(--text2);white-space:nowrap">封面截取时间</span>
@@ -157,11 +164,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <button class="btn btn-ghost btn-sm" id="backBtn">&larr; 返回</button>
         <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
         <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
+        <button class="btn btn-ghost btn-sm" id="copyStreamBtn" title="复制流媒体地址">复制流地址</button>
         <div class="spacer"></div>
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
       </div>
-      <div class="detail-video"><video id="video" controls loop preload="auto"></video></div>
-      <div class="detail-name" id="detailName"></div>
+      <div class="detail-video"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
+      <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span id="detailNameText"></span><span class="detail-drag-icon" id="detailDragIcon" title="\u62D6\u62FD\u5230\u5DE6\u4FA7\u6587\u4EF6\u5939\u4EE5\u79FB\u52A8"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span></div>
+      <div id="detailTags" style="padding:0 24px 8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="clips-section">
         <div class="clips-head">
           <span>片段标记</span>
@@ -213,9 +222,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="toast" id="toast"></div>
 
+<script src="/shared.js"></script>
 <script>
-const $ = s => document.querySelector(s);
-
 const S = {
   tree: null,
   clips: [], curFile: null, playingClipId: null,
@@ -228,17 +236,6 @@ const S = {
 
 function fileId(f) { return f.path; }
 function folderId(f) { return f.path; }
-
-function formatSize(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
-}
 
 // ── Browse ──
 const savedPath = localStorage.getItem('serverViewerPath') || '';
@@ -255,6 +252,7 @@ async function browse(dirPath) {
     S.expanded = new Set([S.tree.path]);
     S.selPath = S.tree.path;
     $('#refreshBtn').style.display = '';
+    $('#releaseBtn').style.display = '';
     renderTree();
     showVideosForFolder(S.tree.path);
   } catch (err) { toast('打开失败: ' + err.message); }
@@ -263,6 +261,37 @@ async function browse(dirPath) {
 $('#openBtn').onclick = () => browse($('#pathInput').value);
 $('#pathInput').onkeydown = e => { if (e.key === 'Enter') browse(e.target.value); };
 $('#refreshBtn').onclick = refreshCurrentFolder;
+$('#releaseBtn').onclick = () => {
+  // Stop any playing video
+  const v = $('#video');
+  v.pause();
+  v.removeAttribute('src');
+  v.load();
+  // Release all card hover videos
+  document.querySelectorAll('.card-media video').forEach(vid => {
+    vid.pause();
+    vid.removeAttribute('src');
+  });
+  // Reset state
+  S.tree = null;
+  S.curFile = null;
+  S.navFiles = [];
+  S.navIdx = -1;
+  S.clips = [];
+  S.playingClipId = null;
+  S.expanded = new Set();
+  S.selPath = null;
+  S.scrollPos = 0;
+  // Reset UI
+  $('#detailView').style.display = 'none';
+  $('#listView').style.display = '';
+  $('#tree').innerHTML = '';
+  $('#grid').innerHTML = '';
+  $('#thumbControls').style.display = 'none';
+  $('#refreshBtn').style.display = 'none';
+  $('#releaseBtn').style.display = 'none';
+  toast('已解除占用');
+};
 
 async function refreshCurrentFolder() {
   if (!S.selPath) return;
@@ -408,17 +437,28 @@ function showVideosForFolder(folderPath) {
   grid.appendChild(frag);
 
   // Lazy hydrate cards near viewport
+  // Staggered hydration: batch card population to avoid jank
+  const pendingCards = [];
+  let hydrateRaf = null;
+  function processCardBatch() {
+    const batch = pendingCards.splice(0, 8); // 8 cards per frame
+    for (const { card, file } of batch) {
+      if (card.classList.contains('placeholder') && file) populateCard(card, file);
+    }
+    if (pendingCards.length > 0) hydrateRaf = requestAnimationFrame(processCardBatch);
+    else hydrateRaf = null;
+  }
   S.cardObserver = new IntersectionObserver(entries => {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         const card = entry.target;
-        if (card.classList.contains('placeholder')) {
-          populateCard(card, videos.find(f => f.path === card.dataset.path));
-        }
+        const file = videos.find(f => f.path === card.dataset.path);
+        pendingCards.push({ card, file });
         S.cardObserver.unobserve(card);
       }
     }
-  }, { root: $('#mainArea'), rootMargin: '400px 0px' });
+    if (!hydrateRaf && pendingCards.length > 0) hydrateRaf = requestAnimationFrame(processCardBatch);
+  }, { root: $('#mainArea'), rootMargin: '200px 0px' });
 
   grid.querySelectorAll('.card.placeholder').forEach(card => S.cardObserver.observe(card));
 
@@ -431,12 +471,12 @@ function populateCard(card, f) {
   const ext = f.name.split('.').pop().toUpperCase();
   const fid = f.path;
 
-  // Tags from folder hierarchy — strip root path
-  const rootPath = S.tree.path.replace(/\\/g, '/');
+  // Tags relative to root folder — always consistent
+  const rootPathNorm = (S.tree?.path || '').replace(/\\/g, '/').replace(/\/+$/, '');
   const fullPath = f.path.replace(/\\/g, '/');
-  const relPath = fullPath.startsWith(rootPath + '/') ? fullPath.slice(rootPath.length + 1) : fullPath;
+  const relPath = rootPathNorm && fullPath.startsWith(rootPathNorm + '/') ? fullPath.slice(rootPathNorm.length + 1) : fullPath;
   const parts = relPath.split('/');
-  const tags = parts.slice(0, -1);
+  const tags = parts.slice(0, -1).filter(t => t);
   const tagsHtml = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
 
   // Stable thumbnail URL — browser-cacheable
@@ -468,15 +508,22 @@ function populateCard(card, f) {
     el.onclick = (e) => {
       e.stopPropagation();
       const tagParts = tags.slice(0, i + 1);
-      const targetPath = findFolderPath(tagParts);
+      let node = S.tree;
+      for (const part of tagParts) {
+        const child = node.folders.find(f => f.name === part);
+        if (!child) return;
+        node = child;
+      }
+      const targetPath = node.path;
       if (!targetPath) return;
       const folder = findFolder(S.tree, targetPath);
       if (folder) {
         S.selPath = targetPath;
         S.expanded.add(targetPath);
-        for (let j = 1; j <= i; j++) {
-          const pp = findFolderPath(tags.slice(0, j));
-          if (pp) S.expanded.add(pp);
+        let cur = S.tree;
+        for (let j = 0; j <= i; j++) {
+          const child = cur.folders.find(f => f.name === tags[j]);
+          if (child) { S.expanded.add(child.path); cur = child; }
         }
         renderTree();
         showVideosForFolder(targetPath);
@@ -517,17 +564,27 @@ function filterGrid(query) {
   });
   grid.appendChild(frag);
 
+  const pendingCards2 = [];
+  let hydrateRaf2 = null;
+  function processCardBatch2() {
+    const batch = pendingCards2.splice(0, 8);
+    for (const { card, file } of batch) {
+      if (card.classList.contains('placeholder') && file) populateCard(card, file);
+    }
+    if (pendingCards2.length > 0) hydrateRaf2 = requestAnimationFrame(processCardBatch2);
+    else hydrateRaf2 = null;
+  }
   S.cardObserver = new IntersectionObserver(entries => {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         const card = entry.target;
-        if (card.classList.contains('placeholder')) {
-          populateCard(card, videos.find(f => f.path === card.dataset.path));
-        }
+        const file = videos.find(f => f.path === card.dataset.path);
+        pendingCards2.push({ card, file });
         S.cardObserver.unobserve(card);
       }
     }
-  }, { root: $('#mainArea'), rootMargin: '400px 0px' });
+    if (!hydrateRaf2 && pendingCards2.length > 0) hydrateRaf2 = requestAnimationFrame(processCardBatch2);
+  }, { root: $('#mainArea'), rootMargin: '200px 0px' });
 
   grid.querySelectorAll('.card.placeholder').forEach(card => S.cardObserver.observe(card));
   loadClipCounts();
@@ -627,6 +684,7 @@ function openDetail(file) {
   updateNavButtons();
 
   const v = $('#video');
+  v.style.display = '';
   v.style.opacity = '0';
   v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
   v.load();
@@ -640,7 +698,42 @@ function openDetail(file) {
     }
   };
 
-  $('#detailName').textContent = file.name;
+  $('#detailNameText').textContent = file.name;
+  setupDetailDrag($('#detailDragIcon'), () => S.curFile);
+  // Show tags relative to root folder (always consistent)
+  const rootPathNorm = S.tree.path ? S.tree.path.replace(/\\/g, '/').replace(/\/+$/, '') : '';
+  const fullPath = file.path.replace(/\\/g, '/');
+  const detailRel = rootPathNorm && fullPath.startsWith(rootPathNorm + '/') ? fullPath.slice(rootPathNorm.length + 1) : fullPath;
+  const detailTags = detailRel.split('/').slice(0, -1).filter(t => t);
+  const tagsEl = $('#detailTags');
+  tagsEl.innerHTML = detailTags.map(t => `<span class="card-tag">${t}</span>`).join('');
+  tagsEl.style.display = detailTags.length ? 'flex' : 'none';
+  tagsEl.querySelectorAll('.card-tag').forEach((el, i) => {
+    el.onclick = () => {
+      const tagParts = detailTags.slice(0, i + 1);
+      let node = S.tree;
+      for (const part of tagParts) {
+        const child = node.folders.find(f => f.name === part);
+        if (!child) return;
+        node = child;
+      }
+      const targetPath = node.path;
+      if (!targetPath) return;
+      const folder = findFolder(S.tree, targetPath);
+      if (folder) {
+        S.selPath = targetPath;
+        S.expanded.add(targetPath);
+        let cur = S.tree;
+        for (let j = 0; j <= i; j++) {
+          const child = cur.folders.find(f => f.name === detailTags[j]);
+          if (child) { S.expanded.add(child.path); cur = child; }
+        }
+        renderTree();
+        showVideosForFolder(targetPath);
+        showList();
+      }
+    };
+  });
   $('#clipAddPanel').style.display = 'none';
   resetClipForm();
   loadClips();
@@ -656,7 +749,7 @@ function updateNavButtons() {
 
 function showList() {
   const v = $('#video');
-  v.pause(); v.src = ''; v.controls = true;
+  v.pause(); v.src = ''; v.controls = true; v.style.display = 'none';
   stopPreview();
   S.playingClipId = null;
   S.curFile = null;
@@ -666,6 +759,18 @@ function showList() {
 }
 
 $('#backBtn').onclick = showList;
+
+// ── Copy stream URL ──
+$('#copyStreamBtn').onclick = async () => {
+  if (!S.curFile) return;
+  const url = location.origin + '/api/local/stream?path=' + encodeURIComponent(S.curFile.path);
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('流地址已复制');
+  } catch {
+    prompt('复制以下地址:', url);
+  }
+};
 
 $('#prevBtn').onclick = () => {
   if (S.navFiles.length <= 1) return;
@@ -689,10 +794,18 @@ async function loadClips() {
 
 function loadClipCounts() {
   fetch('/api/local/clips-counts').then(r => r.json()).then(counts => {
-    document.querySelectorAll('.card-clip-count').forEach(el => {
-      const n = counts[el.dataset.path] || 0;
-      el.textContent = n > 0 ? `${n} 个片段` : '';
-    });
+    const els = [...document.querySelectorAll('.card-clip-count')];
+    // Process in chunks to avoid layout thrashing
+    let idx = 0;
+    function processChunk() {
+      const end = Math.min(idx + 50, els.length);
+      for (; idx < end; idx++) {
+        const n = counts[els[idx].dataset.path] || 0;
+        els[idx].textContent = n > 0 ? `${n} 个片段` : '';
+      }
+      if (idx < els.length) requestAnimationFrame(processChunk);
+    }
+    if (els.length) requestAnimationFrame(processChunk);
   }).catch(() => {});
 }
 
@@ -865,8 +978,8 @@ function openEditClip(clip) {
 }
 $('#cancelEditBtn').onclick = () => resetClipForm();
 
-$('#markStartBtn').onclick = () => { markS = parseFloat($('#video').currentTime.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
-$('#markEndBtn').onclick = () => { markE = parseFloat($('#video').currentTime.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
+$('#markStartBtn').onclick = () => { parseFloat($('#video').currentTime); markS = parseFloat(t.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
+$('#markEndBtn').onclick = () => { parseFloat($('#video').currentTime); markE = parseFloat(t.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
 
 // ── Keyboard Actions ──
 async function deleteCurrentVideo() {
@@ -916,16 +1029,86 @@ async function toggleStar() {
     // Update navFiles reference
     const nf = S.navFiles.find(f => f.path === S.curFile.path || f.name === name);
     if (nf) { nf.name = newName; nf.path = data.newPath; }
-    $('#detailName').textContent = newName;
+    $('#detailNameText').textContent = newName;
     renderTree();
     toast(newName.includes('[stared]') ? '已收藏' : '已取消收藏');
   } catch (e) { toast('操作失败: ' + e.message); }
 }
 
-// Intercept space on video element to prevent native controls double-toggle
-$('#video').addEventListener('keydown', e => {
-  if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); const v = e.target; v.paused ? v.play() : v.pause(); }
-});
+function collectFolderPaths(node, list) {
+  list.push(node.path);
+  for (const f of node.folders) collectFolderPaths(f, list);
+  return list;
+}
+
+async function renameCurrentVideo() {
+  if (!S.curFile) return;
+  const name = prompt('新文件名（含扩展名）', S.curFile.name);
+  if (!name || !name.trim() || name.trim() === S.curFile.name) return;
+  const newName = name.trim();
+  try {
+    const r = await fetch('/api/local/file', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: S.curFile.path, name: newName })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    const oldPath = S.curFile.path;
+    S.curFile.name = newName;
+    S.curFile.path = data.newPath;
+    // Update in-memory tree
+    for (const node of (function* walk(n) { yield n; for (const f of n.folders) yield* walk(f); })(S.tree)) {
+      const v = node.videos.find(v => v.path === oldPath);
+      if (v) { v.name = newName; v.path = data.newPath; }
+    }
+    const nf = S.navFiles.find(f => f.path === data.newPath || f.path === oldPath);
+    if (nf) { nf.name = newName; nf.path = data.newPath; }
+    $('#detailNameText').textContent = newName;
+    renderTree();
+    toast('已重命名为 ' + newName);
+  } catch (e) { toast('重命名失败: ' + e.message); }
+}
+
+function moveCurrentVideo() {
+  if (!S.curFile) return;
+  const folders = collectFolderPaths(S.tree, []);
+  const srcDir = S.curFile.path.replace(/[\\/][^\\/]+$/, '');
+  const choices = folders.filter(p => p !== srcDir);
+  if (!choices.length) return toast('没有其他文件夹可移动');
+  const msg = '选择目标文件夹（输入序号）：\n' + choices.map((p, i) => (i + 1) + '. ' + p).join('\n');
+  const input = prompt(msg);
+  if (!input) return;
+  const idx = parseInt(input) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= choices.length) return toast('无效选择');
+  const destPath = choices[idx];
+  (async () => {
+    try {
+      const r = await fetch('/api/local/move-files', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePaths: [S.curFile.path], destPath })
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      if (data.errors && data.errors.length) throw new Error(data.errors[0].error || data.errors[0]);
+      const oldPath = S.curFile.path;
+      S.curFile.path = data.moved[0].newPath;
+      // Update in-memory tree
+      for (const node of (function* walk(n) { yield n; for (const f of n.folders) yield* walk(f); })(S.tree)) {
+        node.videos = node.videos.filter(v => v.path !== oldPath);
+      }
+      const destFolder = findFolder(S.tree, destPath);
+      if (destFolder) destFolder.videos.push(S.curFile);
+      S.navFiles = S.navFiles.filter(f => f !== S.curFile);
+      S.navIdx = -1;
+      renderTree();
+      $('#detailView').style.display = 'none';
+      $('#listView').style.display = '';
+      showVideosForFolder(S.selPath);
+      toast('已移动到 ' + destPath);
+    } catch (e) { toast('移动失败: ' + e.message); }
+  })();
+}
+
 
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -934,12 +1117,12 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevBtn').click(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextBtn').click(); }
     if (e.key === 'Escape') { $('#backBtn').click(); }
-    if (e.key === ' ' && e.target.tagName !== 'VIDEO') { e.preventDefault(); const v = $('#video'); v.paused ? v.play() : v.pause(); }
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       if (document.fullscreenElement) document.exitFullscreen();
       else $('#video').requestFullscreen();
     }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
   }
@@ -1138,6 +1321,8 @@ function setupTreeDrop(row, folderPath) {
     e.preventDefault();
     row.classList.remove('drop-target');
     console.log('[drop] fired, dragFilePaths:', dragFilePaths, 'dest:', folderPath);
+    if (!dragFilePaths.length) dragFilePaths = window._detailDragPaths || [];
+    if (!dragFilePaths.length) dragFilePaths = window._detailDragPaths || [];
     if (!dragFilePaths.length) return console.warn('[drop] no drag files');
     // Don't allow dropping into the same folder
     const srcDir = dragFilePaths[0].replace(/\\/g, '/').split('/').slice(0, -1).join('/');

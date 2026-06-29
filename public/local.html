@@ -100,6 +100,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .tree-row.drop-target{background:var(--accent-dim);outline:1px dashed var(--accent);outline-offset:-1px}
 .card.dragging{opacity:.4}
 
+.detail-drag-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:grab;border-radius:4px;color:var(--text2);vertical-align:middle;margin-left:8px;transition:all .15s}
+.detail-drag-icon:hover{color:var(--text);background:rgba(255,255,255,.08)}
+.detail-drag-icon:active{cursor:grabbing}
+.detail-drag-icon.dragging{opacity:.4}
+
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -120,6 +125,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .grid{grid-template-columns:1fr}
   .search-input{width:100px}
 }
+
 </style>
 </head>
 <body>
@@ -145,6 +151,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <button class="btn btn-primary" id="browseBtn">选择文件夹</button>
         <span class="folder-name" id="folderName"></span>
         <button class="btn btn-ghost btn-sm" id="refreshBtn" style="display:none">刷新</button>
+        <button class="btn btn-ghost btn-sm" id="releaseBtn" style="display:none;color:var(--red)">解除占用</button>
+        <button class="btn btn-ghost btn-sm" id="forceReleaseBtn" style="display:none;color:var(--red);border-color:var(--red)">强制解除</button>
       </div>
       <div id="savedFolders"></div>
       <div id="thumbControls" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
@@ -164,8 +172,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="spacer"></div>
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
       </div>
-      <div class="detail-video"><video id="video" controls loop preload="auto"></video></div>
-      <div class="detail-name" id="detailName"></div>
+      <div class="detail-video"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
+      <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span id="detailNameText"></span><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span></div>
+      <div id="detailTags" style="padding:0 24px 8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="clips-section">
         <div class="clips-head">
           <span>片段标记</span>
@@ -217,8 +226,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="toast" id="toast"></div>
 
+<script src="/shared.js"></script>
 <script>
-const $ = s => document.querySelector(s);
 const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.avi','.mkv','.wmv','.m4v']);
 
 const S = {
@@ -237,17 +246,6 @@ if (!window.showDirectoryPicker) {
 
 function fileId(f) { return f.relPath; }
 function folderId(f) { return f.relPath; }
-
-function formatSize(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
-}
 
 function revokeBlobs() {
   S.blobUrls.forEach(u => URL.revokeObjectURL(u));
@@ -305,6 +303,7 @@ async function loadFolder(handle) {
   S.parentHandles = {};
   $('#folderName').textContent = handle.name;
   $('#refreshBtn').style.display = '';
+  $('#releaseBtn').style.display = '';
   S.tree = await walkDir(handle, handle.name, handle.name);
   S.expanded = new Set([S.tree.relPath]);
   S.selPath = S.tree.relPath;
@@ -398,6 +397,50 @@ $('#refreshBtn').onclick = async () => {
     showVideosForFolder(S.selPath);
     toast('已刷新');
   } catch (e) { toast('刷新失败: ' + e.message); }
+};
+
+$('#releaseBtn').onclick = () => {
+  // 1. Stop & detach ALL video elements (main + card previews) FIRST
+  //    This ensures blob URLs are no longer referenced when we revoke them
+  const mainVid = $('#video');
+  mainVid.pause();
+  mainVid.src = '';
+  mainVid.load();
+  document.querySelectorAll('.card-media video').forEach(vid => {
+    vid.pause();
+    vid.src = '';
+  });
+  // Also clear any thumbnail images that might have blob references
+  document.querySelectorAll('.card-media img').forEach(img => {
+    img.src = '';
+  });
+  // 2. NOW revoke all blob URLs — no elements reference them anymore
+  for (const url of S.blobUrls) { try { URL.revokeObjectURL(url); } catch {} }
+  S.blobUrls = [];
+  // 3. Null out all FSA handles to release OS file locks
+  S.rootHandle = null;
+  S.tree = null;
+  S.parentHandles = {};
+  S.curFile = null;
+  S.navFiles = [];
+  S.navIdx = -1;
+  S.clips = [];
+  S.playingClipId = null;
+  S.expanded = new Set();
+  S.selPath = null;
+  S.scrollPos = 0;
+  // 4. Reset UI
+  $('#detailView').style.display = 'none';
+  $('#listView').style.display = '';
+  $('#tree').innerHTML = '';
+  $('#grid').innerHTML = '';
+  $('#folderName').textContent = '';
+  $('#thumbControls').style.display = 'none';
+  $('#refreshBtn').style.display = 'none';
+  $('#releaseBtn').style.display = 'none';
+  toast('已解除占用');
+  // 5. Hint browser to release FSA permissions (best-effort)
+  try { navigator.permissions.revoke({ name: 'file-system-access' }); } catch {}
 };
 
 async function walkDir(handle, name, relPath) {
@@ -579,9 +622,18 @@ async function showVideosForFolder(folderPath) {
     return;
   }
   grid.innerHTML = '';
-  videos.forEach(f => grid.appendChild(buildCard(f)));
-  loadClipCounts();
-  generateThumbnailsForGrid();
+  // Staggered card creation: append in chunks to avoid blocking
+  let cardIdx = 0;
+  function appendCardChunk() {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(cardIdx + 20, videos.length);
+    for (; cardIdx < end; cardIdx++) frag.appendChild(buildCard(videos[cardIdx]));
+    grid.appendChild(frag);
+    if (cardIdx < videos.length) requestAnimationFrame(appendCardChunk);
+    else { loadClipCounts(); generateThumbnailsForGrid(); }
+  }
+  if (videos.length > 30) requestAnimationFrame(appendCardChunk);
+  else { videos.forEach(f => grid.appendChild(buildCard(f))); loadClipCounts(); generateThumbnailsForGrid(); }
 }
 
 // ── Cards ──
@@ -592,9 +644,10 @@ function buildCard(f) {
   const ext = f.name.split('.').pop().toUpperCase();
   const fid = f.relPath;
 
-  // Tags from folder hierarchy — strip root name
-  const parts = f.relPath.split('/');
-  const tags = parts.slice(1, -1); // skip root folder name, exclude filename
+  // Tags relative to root folder — always consistent
+  const rootParts = S.tree.relPath ? S.tree.relPath.split('/') : [];
+  const fileParts = f.relPath.split('/');
+  const tags = fileParts.slice(rootParts.length, -1).filter(t => t); // skip root levels, exclude filename
   const tagsHtml = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
 
   d.innerHTML = `
@@ -614,16 +667,15 @@ function buildCard(f) {
   d.querySelectorAll('.card-tag').forEach((el, i) => {
     el.onclick = (e) => {
       e.stopPropagation();
-      // Build relPath up to this tag level (re-add root prefix)
-      const rootName = parts[0];
-      const targetPath = rootName + '/' + tags.slice(0, i + 1).join('/');
+      const rootPath = S.tree.relPath || '';
+      const targetPath = rootPath ? rootPath + '/' + tags.slice(0, i + 1).join('/') : tags.slice(0, i + 1).join('/');
       if (!targetPath) return;
       const folder = findFolder(S.tree, targetPath);
       if (folder) {
         S.selPath = targetPath;
         S.expanded.add(targetPath);
         for (let j = 1; j <= i; j++) {
-          const pp = rootName + '/' + tags.slice(0, j).join('/');
+          const pp = rootPath ? rootPath + '/' + tags.slice(0, j).join('/') : tags.slice(0, j).join('/');
           if (pp) S.expanded.add(pp);
         }
         renderTree();
@@ -695,14 +747,41 @@ async function openDetail(file) {
     v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
   } catch (e) { toast('无法加载视频: ' + e.message); }
 
-  v.ontimeupdate = () => {
-    if (S.playingClipId) {
-      const clip = S.clips.find(c => c.id === S.playingClipId);
-      if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
-    }
-  };
-
-  $('#detailName').textContent = file.name;
+  $('#detailNameText').textContent = file.name;
+  setupDetailDrag($('#detailDragIcon'), () => S.curFile);
+  // Show tags relative to root folder (always consistent)
+  const rootParts = S.tree.relPath ? S.tree.relPath.split('/') : [];
+  const fileParts = file.relPath.split('/');
+  const detailTags = fileParts.slice(rootParts.length, -1).filter(t => t);
+  const tagsEl = $('#detailTags');
+  tagsEl.innerHTML = detailTags.map(t => `<span class="card-tag">${t}</span>`).join('');
+  tagsEl.style.display = detailTags.length ? 'flex' : 'none';
+  tagsEl.querySelectorAll('.card-tag').forEach((el, i) => {
+    el.onclick = () => {
+      const tagParts = detailTags.slice(0, i + 1);
+      let node = S.tree;
+      for (const part of tagParts) {
+        const child = node.folders.find(f => f.name === part);
+        if (!child) return;
+        node = child;
+      }
+      const targetPath = node.relPath;
+      if (!targetPath) return;
+      const folder = findFolder(S.tree, targetPath);
+      if (folder) {
+        S.selPath = targetPath;
+        S.expanded.add(targetPath);
+        let cur = S.tree;
+        for (let j = 0; j <= i; j++) {
+          const child = cur.folders.find(f => f.name === detailTags[j]);
+          if (child) { S.expanded.add(child.relPath); cur = child; }
+        }
+        renderTree();
+        showVideosForFolder(targetPath);
+        showList();
+      }
+    };
+  });
   $('#clipAddPanel').style.display = 'none';
   resetClipForm();
   loadClips();
@@ -932,8 +1011,8 @@ function openEditClip(clip) {
 }
 $('#cancelEditBtn').onclick = () => resetClipForm();
 
-$('#markStartBtn').onclick = () => { markS = parseFloat($('#video').currentTime.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
-$('#markEndBtn').onclick = () => { markE = parseFloat($('#video').currentTime.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
+$('#markStartBtn').onclick = () => { parseFloat($('#video').currentTime); markS = parseFloat(t.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
+$('#markEndBtn').onclick = () => { parseFloat($('#video').currentTime); markE = parseFloat(t.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
 
 // ── Keyboard Actions ──
 async function deleteCurrentVideo() {
@@ -987,15 +1066,81 @@ async function toggleStar() {
     // Update clips storage key
     const all = loadAllLocalClips();
     if (all[oldRel]) { all[newRel] = all[oldRel]; delete all[oldRel]; saveAllLocalClips(all); }
-    $('#detailName').textContent = newName;
+    $('#detailNameText').textContent = newName;
     renderTree();
     toast(newName.includes('[stared]') ? '已收藏' : '已取消收藏');
   } catch (e) { toast('操作失败: ' + e.message); }
 }
 
-$('#video').addEventListener('keydown', e => {
-  if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); const v = e.target; v.paused ? v.play() : v.pause(); }
-});
+function renameCurrentVideo() {
+  if (!S.curFile) return;
+  const name = prompt('新文件名（含扩展名）', S.curFile.name);
+  if (!name || !name.trim() || name.trim() === S.curFile.name) return;
+  const newName = name.trim();
+  try {
+    S.curFile.handle.move(newName);
+    const oldRel = S.curFile.relPath;
+    S.curFile.name = newName;
+    const parts = oldRel.split('/');
+    parts[parts.length - 1] = newName;
+    S.curFile.relPath = parts.join('/');
+    S.parentHandles[S.curFile.relPath] = S.parentHandles[oldRel];
+    delete S.parentHandles[oldRel];
+    // Update in-memory tree
+    const srcDir = oldRel.split('/').slice(0, -1).join('/');
+    const srcFolder = findFolder(S.tree, srcDir);
+    if (srcFolder) {
+      const vid = srcFolder.videos.find(v => v.relPath === oldRel);
+      if (vid) { vid.name = newName; vid.relPath = S.curFile.relPath; }
+    }
+    $('#detailNameText').textContent = newName;
+    renderTree();
+    toast('已重命名为 ' + newName);
+  } catch (e) { toast('重命名失败: ' + e.message); }
+}
+
+function collectFolderPaths(node, list) {
+  list.push(node.relPath);
+  for (const f of node.folders) collectFolderPaths(f, list);
+  return list;
+}
+
+function moveCurrentVideo() {
+  if (!S.curFile) return;
+  const folders = collectFolderPaths(S.tree, []);
+  const srcDir = S.curFile.relPath.split('/').slice(0, -1).join('/');
+  const choices = folders.filter(p => p !== srcDir);
+  if (!choices.length) return toast('没有其他文件夹可移动');
+  const msg = '选择目标文件夹（输入序号）：\n' + choices.map((p, i) => (i + 1) + '. ' + p).join('\n');
+  const input = prompt(msg);
+  if (!input) return;
+  const idx = parseInt(input) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= choices.length) return toast('无效选择');
+  const destPath = choices[idx];
+  (async () => {
+    try {
+      const destHandle = await getDirHandle(destPath);
+      await S.curFile.handle.move(destHandle, S.curFile.name);
+      // Update in-memory tree
+      const srcFolder = findFolder(S.tree, srcDir);
+      const destFolder = findFolder(S.tree, destPath);
+      if (srcFolder) srcFolder.videos = srcFolder.videos.filter(v => v !== S.curFile);
+      const oldRel = S.curFile.relPath;
+      S.curFile.relPath = destPath + '/' + S.curFile.name;
+      S.parentHandles[S.curFile.relPath] = destHandle;
+      delete S.parentHandles[oldRel];
+      if (destFolder) destFolder.videos.push(S.curFile);
+      S.navFiles = S.navFiles.filter(f => f !== S.curFile);
+      S.navIdx = -1;
+      renderTree();
+      // Return to list view since video was moved
+      $('#detailView').style.display = 'none';
+      $('#listView').style.display = '';
+      showVideosForFolder(S.selPath);
+      toast('已移动到 ' + destPath);
+    } catch (e) { toast('移动失败: ' + e.message); }
+  })();
+}
 
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1004,12 +1149,12 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevBtn').click(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextBtn').click(); }
     if (e.key === 'Escape') { $('#backBtn').click(); }
-    if (e.key === ' ' && e.target.tagName !== 'VIDEO') { e.preventDefault(); const v = $('#video'); v.paused ? v.play() : v.pause(); }
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       if (document.fullscreenElement) document.exitFullscreen();
       else $('#video').requestFullscreen();
     }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
   }
@@ -1224,6 +1369,7 @@ function setupTreeDrop(row, folderRelPath) {
     // Snapshot immediately — dragend may clear dragFiles during await
     const files = [...dragFiles];
     console.log('[drop] fired, files:', files.map(f => ({name: f.name, relPath: f.relPath, hasHandle: !!f.handle})), 'dest:', folderRelPath);
+    if (!files.length) files = window._detailDragObjs || [];
     if (!files.length) return console.warn('[drop] no drag files');
     // Don't drop into same folder
     const srcParts = files[0].relPath.split('/');

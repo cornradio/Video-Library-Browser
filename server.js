@@ -422,9 +422,11 @@ app.get('/api/local/stream', (req, res) => {
       fs.createReadStream(filePath).pipe(res);
     }
   } catch (err) {
+    console.error('Stream 404:', filePath, '-', err.message);
     res.status(404).send('File not found');
   }
 });
+
 
 app.get('/api/local/thumbnail', async (req, res) => {
   const filePath = req.query.path;

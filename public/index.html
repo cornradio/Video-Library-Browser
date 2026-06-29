@@ -175,6 +175,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .header h1{font-size:16px}
   .search-input{width:100px}
 }
+
 </style>
 </head>
 <body>
@@ -208,7 +209,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
         <button class="btn btn-danger btn-sm" id="deleteTrick">删除</button>
       </div>
-      <div class="detail-video"><video id="detailVideo" controls loop preload="auto"></video></div>
+      <div class="detail-video"><video id="detailVideo" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
       <div class="detail-info">
         <div class="detail-name" id="detailName"></div>
         <div class="detail-tags" id="detailTags"></div>
@@ -294,8 +295,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="toast" id="toast"></div>
 
+<script src="/shared.js"></script>
 <script>
-const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
 const S = {
@@ -308,12 +309,6 @@ const S = {
 };
 
 // ── API ──
-function formatSize(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
 
 async function loadAll() {
   const [tricks, cats] = await Promise.all([
@@ -675,7 +670,7 @@ function showGrid() {
 
 $('#backToGrid').onclick = showGrid;
 
-async function openDetail(id) {
+function openDetail(id) {
   const t = S.tricks.find(x => x.id === id);
   if (!t) return;
   S.curTrick = t;
@@ -693,15 +688,14 @@ async function openDetail(id) {
   $('#detailNotes').textContent = t.notes || '';
 
   const v = $('#detailVideo');
+  v.style.display = '';
   v.style.opacity = '0';
   v.src = t.videoPath;
   v.load();
   v.ontimeupdate = () => {
     if (S.playingClipId && S.curTrick) {
       const clip = S.curTrick.clips?.find(c => c.id === S.playingClipId);
-      if (clip && v.currentTime >= clip.endTime) {
-        v.currentTime = clip.startTime;
-      }
+      if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
     }
   };
   v.play().catch(() => {});
@@ -765,9 +759,6 @@ async function toggleStar() {
   } catch (e) { toast('操作失败: ' + e.message); }
 }
 
-$('#detailVideo').addEventListener('keydown', e => {
-  if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); const v = e.target; v.paused ? v.play() : v.pause(); }
-});
 
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -776,7 +767,6 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevTrickBtn').click(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextTrickBtn').click(); }
     if (e.key === 'Escape') { $('#backToGrid').click(); }
-    if (e.key === ' ' && e.target.tagName !== 'VIDEO') { e.preventDefault(); const v = $('#detailVideo'); v.paused ? v.play() : v.pause(); }
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       if (document.fullscreenElement) document.exitFullscreen();
@@ -1065,14 +1055,6 @@ $('#deleteTrick').onclick = async () => {
   await loadAll();
   toast('已删除');
 };
-
-// ── Toast ──
-function toast(msg) {
-  const t = $('#toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
-}
 
 // ── Mobile Sidebar Toggle ──
 function closeSidebar() {
