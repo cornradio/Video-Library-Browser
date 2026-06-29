@@ -624,6 +624,6 @@ app.patch('/api/local/move-files', async (req, res) => {
   res.json({ success: true, moved, errors });
 });
 
-app.listen(PORT, () => {
-  console.log(`Tricks Collection running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Tricks Collection running at http://0.0.0.0:${PORT}`);
 });

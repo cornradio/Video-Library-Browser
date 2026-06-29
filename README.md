@@ -22,9 +22,9 @@ npm start
 自定义端口：
 
 ```bash
-node server.js 8080
+node server.js 6688
 # 或
-PORT=8080 npm start
+PORT=6688 npm start
 ```
 
 
