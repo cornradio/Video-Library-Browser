@@ -155,6 +155,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .clip-add-row .trim-val{font-family:monospace;font-size:13px;min-width:58px;padding:3px 7px;background:var(--card);border:1px solid var(--border);border-radius:4px;text-align:center;color:var(--text)}
 .clip-add-name{margin-top:10px}
 
+.help-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.help-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.help-panel{display:none;position:fixed;top:52px;right:20px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 0;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.help-panel.show{display:block}
+.help-section{padding:4px 0;border-bottom:1px solid var(--border)}
+.help-section:last-child{border-bottom:none}
+.help-title{font-size:11px;color:var(--accent);font-weight:600;padding:4px 16px 2px;text-transform:uppercase;letter-spacing:.5px}
+.help-panel a{display:block;padding:5px 16px;font-size:13px;color:var(--text);text-decoration:none;transition:background .1s}
+.help-panel a:hover{background:var(--hover)}
+
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -188,6 +198,28 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <a href="/local.html" class="btn btn-ghost btn-sm" style="text-decoration:none">本地浏览</a>
   <a href="/server.html" class="btn btn-ghost btn-sm" style="text-decoration:none">服务器浏览</a>
   <button class="btn btn-primary" id="uploadBtn">+ 上传</button>
+  <button class="help-btn" id="helpBtn" title="资源导航">?</button>
+  <div class="help-panel" id="helpPanel">
+    <div class="help-section">
+      <div class="help-title">字幕下载</div>
+      <a href="https://zimuku.org" target="_blank">字幕库</a>
+      <a href="https://subhd.tv" target="_blank">SubHD</a>
+      <a href="https://opensubtitles.org" target="_blank">OpenSubtitles</a>
+      <a href="https://assrt.net" target="_blank">assrt (ASS字幕)</a>
+      <a href="https://a4k.net" target="_blank">A4K字幕网</a>
+    </div>
+    <div class="help-section">
+      <div class="help-title">影视资源</div>
+      <a href="https://mikanani.me" target="_blank">蜜柑计划 (动漫)</a>
+      <a href="https://bangumi.moe" target="_blank">Bangumi (动漫)</a>
+      <a href="https://www.yysub.net" target="_blank">YYeTs 人人字幕</a>
+    </div>
+    <div class="help-section">
+      <div class="help-title">工具</div>
+      <a href="https://www.mediaarea.net/MediaInfo" target="_blank">MediaInfo (视频信息)</a>
+      <a href="https://ffmpeg.org" target="_blank">FFmpeg</a>
+    </div>
+  </div>
 </div>
 
 <div class="layout">
@@ -307,6 +339,17 @@ const S = {
   navIdx: -1,
 
 };
+
+// ── Help panel ──
+$('#helpBtn').onclick = (e) => {
+  e.stopPropagation();
+  $('#helpPanel').classList.toggle('show');
+};
+document.addEventListener('click', (e) => {
+  if (!$('#helpPanel').contains(e.target) && e.target !== $('#helpBtn')) {
+    $('#helpPanel').classList.remove('show');
+  }
+});
 
 // ── API ──
 

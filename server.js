@@ -358,7 +358,8 @@ app.get('/api/local/directory', (req, res) => {
       }
       videos.sort((a, b) => a.name.localeCompare(b.name));
       folders.sort((a, b) => a.name.localeCompare(b.name));
-      return { name: path.basename(dir), path: dir, videos, folders };
+      const hasThumb = fs.existsSync(path.join(dir, '.TThumb.PNG'));
+      return { name: path.basename(dir), path: dir, videos, folders, hasThumb };
     }
 
     res.json(scan(dirPath));
@@ -386,12 +387,14 @@ app.get('/api/local/scan-folder', (req, res) => {
         videos.push({ name: e.name, path: fp, size });
       } else if (e.isDirectory()) {
         const subPath = path.join(dirPath, e.name);
-        folders.push({ name: e.name, path: subPath, videos: [], folders: [] });
+        const hasThumb = fs.existsSync(path.join(subPath, '.TThumb.PNG'));
+        folders.push({ name: e.name, path: subPath, videos: [], folders: [], hasThumb });
       }
     }
     videos.sort((a, b) => a.name.localeCompare(b.name));
     folders.sort((a, b) => a.name.localeCompare(b.name));
-    res.json({ name: path.basename(dirPath), path: dirPath, videos, folders });
+    const hasThumb = fs.existsSync(path.join(dirPath, '.TThumb.PNG'));
+    res.json({ name: path.basename(dirPath), path: dirPath, videos, folders, hasThumb });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -517,6 +520,39 @@ app.delete('/api/local/clips/:id', (req, res) => {
   writeLocalClips(db); res.json({ success: true });
 });
 
+// ── Folder thumbnail ──
+const thumbUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/local/folder-thumb', thumbUpload.single('thumb'), (req, res) => {
+  try {
+    const folderPath = req.body.folderPath;
+    if (!folderPath || !req.file) return res.status(400).json({ error: '缺少参数' });
+    const thumbPath = path.join(folderPath, '.TThumb.PNG');
+    fs.writeFileSync(thumbPath, req.file.buffer);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/local/folder-thumb', (req, res) => {
+  const folderPath = req.query.path;
+  if (!folderPath) return res.status(400).send('No path');
+  const thumbPath = path.join(folderPath, '.TThumb.PNG');
+  if (!fs.existsSync(thumbPath)) return res.status(404).send('Not found');
+  const ext = path.extname(thumbPath).toLowerCase();
+  const ct = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'application/octet-stream';
+  res.setHeader('Content-Type', ct);
+  fs.createReadStream(thumbPath).pipe(res);
+});
+
+app.delete('/api/local/folder-thumb', (req, res) => {
+  const folderPath = req.query.path;
+  if (!folderPath) return res.status(400).json({ error: '缺少路径' });
+  const thumbPath = path.join(folderPath, '.TThumb.PNG');
+  try {
+    if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Server-side file operations
 app.get('/api/local/reveal', (req, res) => {
   const filePath = req.query.path;
@@ -529,45 +565,33 @@ app.get('/api/local/reveal', (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete('/api/local/file', async (req, res) => {
+app.delete('/api/local/file', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: '缺少路径' });
   try {
-    await new Promise((resolve, reject) => {
-      execFile('powershell', ['-Command', 'Remove-Item -LiteralPath $env:_F -Force'], {
-        env: { ...process.env, _F: filePath }
-      }, err => err ? reject(err) : resolve());
-    });
+    fs.unlinkSync(filePath);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.patch('/api/local/file', async (req, res) => {
+app.patch('/api/local/file', (req, res) => {
   const { path: filePath, name } = req.body;
   if (!filePath || !name) return res.status(400).json({ error: '参数不完整' });
   try {
     const dir = path.dirname(filePath);
     const newPath = path.join(dir, name);
-    await new Promise((resolve, reject) => {
-      execFile('powershell', ['-Command', 'Rename-Item -LiteralPath $env:_F -NewName $env:_N'], {
-        env: { ...process.env, _F: filePath, _N: name }
-      }, err => err ? reject(err) : resolve());
-    });
+    fs.renameSync(filePath, newPath);
     res.json({ success: true, newPath });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Folder Management ──
-app.post('/api/local/folder', async (req, res) => {
+app.post('/api/local/folder', (req, res) => {
   const { parentPath, name } = req.body;
   if (!parentPath || !name) return res.status(400).json({ error: '参数不完整' });
   const newDir = path.join(parentPath, name.trim());
   try {
-    await new Promise((resolve, reject) => {
-      execFile('powershell', ['-Command', 'New-Item -ItemType Directory -Path $env:_P -Force | Out-Null'], {
-        env: { ...process.env, _P: newDir }
-      }, err => err ? reject(err) : resolve());
-    });
+    fs.mkdirSync(newDir, { recursive: true });
     res.json({ success: true, path: newDir });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -576,11 +600,7 @@ app.delete('/api/local/folder', async (req, res) => {
   const folderPath = req.query.path;
   if (!folderPath) return res.status(400).json({ error: '缺少路径' });
   try {
-    await new Promise((resolve, reject) => {
-      execFile('powershell', ['-Command', 'Remove-Item -LiteralPath $env:_P -Recurse -Force'], {
-        env: { ...process.env, _P: folderPath }
-      }, err => err ? reject(err) : resolve());
-    });
+    fs.rmSync(folderPath, { recursive: true, force: true });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -591,11 +611,7 @@ app.patch('/api/local/folder', async (req, res) => {
   try {
     const dir = path.dirname(folderPath);
     const newPath = path.join(dir, name);
-    await new Promise((resolve, reject) => {
-      execFile('powershell', ['-Command', 'Rename-Item -LiteralPath $env:_P -NewName $env:_N'], {
-        env: { ...process.env, _P: folderPath, _N: name }
-      }, err => err ? reject(err) : resolve());
-    });
+    fs.renameSync(folderPath, newPath);
     res.json({ success: true, newPath });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -604,22 +620,36 @@ app.patch('/api/local/move-files', async (req, res) => {
   const { filePaths, destPath } = req.body;
   console.log('[move-files] request:', { filePaths, destPath });
   if (!filePaths?.length || !destPath) return res.status(400).json({ error: '参数不完整' });
+
+  // Check destination exists
+  if (!fs.existsSync(destPath) || !fs.statSync(destPath).isDirectory()) {
+    return res.status(400).json({ error: '目标文件夹不存在: ' + destPath });
+  }
+
   const moved = [];
   const errors = [];
   for (const fp of filePaths) {
+    // Check source exists before attempting move
+    if (!fs.existsSync(fp)) {
+      console.error('[move-files] source not found:', fp);
+      errors.push({ path: fp, error: '源文件不存在' });
+      continue;
+    }
+    const dest = path.join(destPath, path.basename(fp));
     try {
-      await new Promise((resolve, reject) => {
-        execFile('powershell', ['-Command', 'Move-Item -LiteralPath $env:_F -Destination $env:_D -Force'], {
-          env: { ...process.env, _F: fp, _D: destPath }
-        }, (err, stdout, stderr) => {
-          if (err) { console.error('[move-files] PowerShell error:', err.message, 'stderr:', stderr); reject(err); }
-          else resolve();
-        });
-      });
-      moved.push({ oldPath: fp, newPath: path.join(destPath, path.basename(fp)) });
-    } catch (err) {
-      console.error('[move-files] failed for:', fp, err.message);
-      errors.push({ path: fp, error: err.message });
+      // Try native rename first (fast, works on same volume)
+      fs.renameSync(fp, dest);
+      moved.push({ oldPath: fp, newPath: dest });
+    } catch (renameErr) {
+      // If rename fails (e.g. cross-volume), fall back to copy + delete
+      try {
+        fs.copyFileSync(fp, dest);
+        fs.unlinkSync(fp);
+        moved.push({ oldPath: fp, newPath: dest });
+      } catch (copyErr) {
+        console.error('[move-files] failed for:', fp, copyErr.message);
+        errors.push({ path: fp, error: copyErr.message });
+      }
     }
   }
   console.log('[move-files] result:', { moved: moved.length, errors: errors.length });

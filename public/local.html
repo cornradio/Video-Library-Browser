@@ -42,7 +42,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .tree-toggle{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text3);transition:transform var(--speed);flex-shrink:0}
 .tree-toggle.open{transform:rotate(90deg)}
 .tree-toggle.hidden{visibility:hidden}
-.tree-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.tree-thumb{width:18px;height:18px;border-radius:3px;object-fit:cover;flex-shrink:0}
 .tree-count{font-size:11px;color:var(--text3);flex-shrink:0}
 .tree-kids{padding-left:10px}
 
@@ -105,6 +106,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .detail-drag-icon:active{cursor:grabbing}
 .detail-drag-icon.dragging{opacity:.4}
 
+.help-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.help-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.help-panel{display:none;position:fixed;top:52px;right:20px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 0;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.help-panel.show{display:block}
+.help-section{padding:4px 0;border-bottom:1px solid var(--border)}
+.help-section:last-child{border-bottom:none}
+.help-title{font-size:11px;color:var(--accent);font-weight:600;padding:4px 16px 2px;text-transform:uppercase;letter-spacing:.5px}
+.help-panel a{display:block;padding:5px 16px;font-size:13px;color:var(--text);text-decoration:none;transition:background .1s}
+.help-panel a:hover{background:var(--hover)}
+
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -136,6 +147,28 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
   <a href="/server.html" class="btn btn-ghost btn-sm" style="text-decoration:none">服务器模式</a>
   <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
+  <button class="help-btn" id="helpBtn" title="资源导航">?</button>
+  <div class="help-panel" id="helpPanel">
+    <div class="help-section">
+      <div class="help-title">字幕下载</div>
+      <a href="https://zimuku.org" target="_blank">字幕库</a>
+      <a href="https://subhd.tv" target="_blank">SubHD</a>
+      <a href="https://opensubtitles.org" target="_blank">OpenSubtitles</a>
+      <a href="https://assrt.net" target="_blank">assrt (ASS字幕)</a>
+      <a href="https://a4k.net" target="_blank">A4K字幕网</a>
+    </div>
+    <div class="help-section">
+      <div class="help-title">影视资源</div>
+      <a href="https://mikanani.me" target="_blank">蜜柑计划 (动漫)</a>
+      <a href="https://bangumi.moe" target="_blank">Bangumi (动漫)</a>
+      <a href="https://www.yysub.net" target="_blank">YYeTs 人人字幕</a>
+    </div>
+    <div class="help-section">
+      <div class="help-title">工具</div>
+      <a href="https://www.mediaarea.net/MediaInfo" target="_blank">MediaInfo (视频信息)</a>
+      <a href="https://ffmpeg.org" target="_blank">FFmpeg</a>
+    </div>
+  </div>
 </div>
 
 <div class="layout">
@@ -160,6 +193,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <input type="range" id="thumbTimeSlider" min="0" max="300" value="1" step="1" style="flex:1;accent-color:var(--accent)">
         <span id="thumbTimeVal" style="font-family:monospace;font-size:12px;color:var(--text);min-width:40px;text-align:center">1s</span>
         <button class="btn btn-ghost btn-sm" id="refreshCoversBtn" style="white-space:nowrap">刷新封面</button>
+      </div>
+      <div id="folderHeader" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:12px">
+        <div id="folderThumbWrap" style="position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--bg);border:2px dashed var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="点击上传或 Ctrl+V 粘贴图片">
+          <img id="folderThumbImg" style="width:100%;height:100%;object-fit:cover;display:none" alt="">
+          <span id="folderThumbPlaceholder" style="font-size:24px;color:var(--text3)">&#128247;</span>
+          <input type="file" id="folderThumbInput" accept="image/*" style="display:none">
+          <button id="folderThumbDelete" style="display:none;position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.7);color:#fff;font-size:13px;cursor:pointer;line-height:1;padding:0" title="删除封面">&times;</button>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div id="folderHeaderName" style="font-size:16px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          <div id="folderHeaderPath" style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px"></div>
+        </div>
       </div>
       <div class="grid" id="grid"></div>
     </div>
@@ -235,6 +280,7 @@ const S = {
   clips: [], curFile: null, playingClipId: null,
   expanded: new Set(), selPath: null,
   navFiles: [], navIdx: -1, blobUrls: [], scrollPos: 0,
+  currentFolderPath: null,
 
 };
 
@@ -246,6 +292,17 @@ if (!window.showDirectoryPicker) {
 
 function fileId(f) { return f.relPath; }
 function folderId(f) { return f.relPath; }
+
+// ── Help panel ──
+$('#helpBtn').onclick = (e) => {
+  e.stopPropagation();
+  $('#helpPanel').classList.toggle('show');
+};
+document.addEventListener('click', (e) => {
+  if (!$('#helpPanel').contains(e.target) && e.target !== $('#helpBtn')) {
+    $('#helpPanel').classList.remove('show');
+  }
+});
 
 function revokeBlobs() {
   S.blobUrls.forEach(u => URL.revokeObjectURL(u));
@@ -341,7 +398,27 @@ function renderSavedFolders(saved) {
 (async () => {
   try {
     const saved = await idbGetAll();
-    if (Object.keys(saved).length) renderSavedFolders(saved);
+    if (Object.keys(saved).length) {
+      renderSavedFolders(saved);
+      // Check for video URL param to auto-open
+      const videoParam = new URLSearchParams(location.search).get('video');
+      if (videoParam) {
+        // Try to load the most recent saved folder
+        const handles = Object.values(saved);
+        if (handles.length > 0) {
+          const handle = handles[handles.length - 1];
+          try {
+            const perm = await handle.queryPermission({ mode: 'readwrite' });
+            if (perm === 'granted') {
+              await loadFolder(handle);
+              const allVids = getAllVideos(S.tree);
+              const target = allVids.find(v => v.relPath === videoParam);
+              if (target) openDetail(target);
+            }
+          } catch {}
+        }
+      }
+    }
   } catch {}
 })();
 
@@ -357,16 +434,16 @@ $('#browseBtn').onclick = async () => {
   }
 };
 
-$('#refreshBtn').onclick = async () => {
-  if (!S.rootHandle || S.selPath == null) return;
+async function refreshLocalFolder(folderPath, showToast = true) {
+  if (!S.rootHandle || folderPath == null) return;
   try {
-    const folder = findFolder(S.tree, S.selPath);
+    const folder = findFolder(S.tree, folderPath);
     if (!folder) return;
-    const dirHandle = await getDirHandle(S.selPath);
+    const dirHandle = await getDirHandle(folderPath);
     // Re-read only direct children of this folder
     const newVideos = [], newFolderNames = [];
     for await (const [entryName, entryHandle] of dirHandle.entries()) {
-      const childRel = S.selPath ? S.selPath + '/' + entryName : entryName;
+      const childRel = folderPath ? folderPath + '/' + entryName : entryName;
       S.parentHandles[childRel] = dirHandle;
       if (entryHandle.kind === 'file') {
         const ext = entryName.slice(entryName.lastIndexOf('.')).toLowerCase();
@@ -381,6 +458,10 @@ $('#refreshBtn').onclick = async () => {
     }
     // Update videos
     folder.videos = newVideos;
+    // Check if folder structure changed before re-rendering tree
+    const oldFolderNames = folder.folders.map(f => f.name).sort().join(',');
+    const newFolderNamesSorted = newFolderNames.slice().sort().join(',');
+    const structureChanged = oldFolderNames !== newFolderNamesSorted;
     // Update subfolders: keep existing subtree data for folders that still exist, add new ones as empty nodes
     const existingMap = {};
     for (const f of folder.folders) existingMap[f.name] = f;
@@ -389,15 +470,17 @@ $('#refreshBtn').onclick = async () => {
       if (existingMap[name]) {
         folder.folders.push(existingMap[name]);
       } else {
-        const childRel = S.selPath ? S.selPath + '/' + name : name;
+        const childRel = folderPath ? folderPath + '/' + name : name;
         folder.folders.push({ name, relPath: childRel, videos: [], folders: [], _unscanned: true });
       }
     }
-    renderTree();
-    showVideosForFolder(S.selPath);
-    toast('已刷新');
-  } catch (e) { toast('刷新失败: ' + e.message); }
-};
+    if (structureChanged) renderTree();
+    showVideosForFolder(folderPath);
+    if (showToast) toast('已刷新');
+  } catch (e) { if (showToast) toast('刷新失败: ' + e.message); }
+}
+
+$('#refreshBtn').onclick = () => refreshLocalFolder(S.selPath, true);
 
 $('#releaseBtn').onclick = () => {
   // 1. Stop & detach ALL video elements (main + card previews) FIRST
@@ -445,10 +528,12 @@ $('#releaseBtn').onclick = () => {
 
 async function walkDir(handle, name, relPath) {
   const videos = [], folders = [];
+  let hasThumb = false;
   for await (const [entryName, entryHandle] of handle.entries()) {
     const childRel = relPath ? relPath + '/' + entryName : entryName;
     S.parentHandles[childRel] = handle;
     if (entryHandle.kind === 'file') {
+      if (entryName === '.TThumb.PNG') { hasThumb = true; continue; }
       const ext = entryName.slice(entryName.lastIndexOf('.')).toLowerCase();
       if (VIDEO_EXTS.has(ext)) {
         let size = 0;
@@ -459,7 +544,7 @@ async function walkDir(handle, name, relPath) {
       folders.push(await walkDir(entryHandle, entryName, childRel));
     }
   }
-  return { name, relPath, videos, folders };
+  return { name, relPath, videos, folders, hasThumb };
 }
 
 // ── Thumbnails (canvas-based) ──
@@ -569,11 +654,31 @@ function buildTreeNode(folder) {
 
   const nm = document.createElement('span');
   nm.className = 'tree-name';
-  nm.textContent = folder.name;
-  nm.onclick = () => {
+  if (folder.hasThumb) {
+    const thumbImg = document.createElement('img');
+    thumbImg.className = 'tree-thumb';
+    thumbImg.alt = '';
+    nm.append(thumbImg, document.createTextNode(folder.name));
+    // Load thumbnail asynchronously
+    (async () => {
+      try {
+        const dirHandle = await getDirHandle(folder.relPath);
+        const fileHandle = await dirHandle.getFileHandle('.TThumb.PNG');
+        const file = await fileHandle.getFile();
+        const url = URL.createObjectURL(file);
+        S.blobUrls.push(url);
+        thumbImg.src = url;
+      } catch {}
+    })();
+  } else {
+    nm.textContent = folder.name;
+  }
+  nm.onclick = async () => {
     S.selPath = id;
     showVideosForFolder(id);
     renderTree();
+    // Auto-refresh folder contents in background
+    await refreshLocalFolder(id, false);
   };
 
   const cnt = document.createElement('span');
@@ -615,6 +720,14 @@ async function showVideosForFolder(folderPath) {
   $('#listView').style.display = '';
   $('#detailView').style.display = 'none';
 
+  // Show folder header
+  const header = $('#folderHeader');
+  header.style.display = 'flex';
+  $('#folderHeaderName').textContent = folder.name;
+  $('#folderHeaderPath').textContent = folderPath;
+  S.currentFolderPath = folderPath;
+  updateFolderThumb(folderPath);
+
   const grid = $('#grid');
   $('#thumbControls').style.display = videos.length ? 'flex' : 'none';
   if (!videos.length) {
@@ -635,6 +748,79 @@ async function showVideosForFolder(folderPath) {
   if (videos.length > 30) requestAnimationFrame(appendCardChunk);
   else { videos.forEach(f => grid.appendChild(buildCard(f))); loadClipCounts(); generateThumbnailsForGrid(); }
 }
+
+// ── Folder thumbnail ──
+async function updateFolderThumb(folderPath) {
+  const img = $('#folderThumbImg');
+  const ph = $('#folderThumbPlaceholder');
+  const del = $('#folderThumbDelete');
+  try {
+    const dirHandle = await getDirHandle(folderPath);
+    const fileHandle = await dirHandle.getFileHandle('.TThumb.PNG');
+    const file = await fileHandle.getFile();
+    const url = URL.createObjectURL(file);
+    S.blobUrls.push(url);
+    img.src = url;
+    img.style.display = '';
+    ph.style.display = 'none';
+    del.style.display = '';
+  } catch {
+    img.style.display = 'none';
+    ph.style.display = '';
+    del.style.display = 'none';
+  }
+}
+
+async function uploadFolderThumb(file) {
+  if (!S.currentFolderPath) return;
+  try {
+    const dirHandle = await getDirHandle(S.currentFolderPath);
+    const fileHandle = await dirHandle.getFileHandle('.TThumb.PNG', { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(file);
+    await writable.close();
+    // Update tree data
+    const folder = findFolder(S.tree, S.currentFolderPath);
+    if (folder) folder.hasThumb = true;
+    await updateFolderThumb(S.currentFolderPath);
+    toast('缩略图已保存');
+    renderTree();
+  } catch (e) { toast('保存失败: ' + e.message); }
+}
+
+$('#folderThumbWrap').onclick = () => $('#folderThumbInput').click();
+$('#folderThumbInput').onchange = (e) => {
+  if (e.target.files[0]) uploadFolderThumb(e.target.files[0]);
+  e.target.value = '';
+};
+document.addEventListener('paste', (e) => {
+  if (!$('#folderHeader') || $('#folderHeader').style.display === 'none') return;
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (file) uploadFolderThumb(file);
+      return;
+    }
+  }
+});
+
+$('#folderThumbDelete').onclick = async (e) => {
+  e.stopPropagation();
+  if (!S.currentFolderPath) return;
+  if (!confirm('删除此文件夹封面？')) return;
+  try {
+    const dirHandle = await getDirHandle(S.currentFolderPath);
+    await dirHandle.removeEntry('.TThumb.PNG');
+    await updateFolderThumb(S.currentFolderPath);
+    const folder = findFolder(S.tree, S.currentFolderPath);
+    if (folder) folder.hasThumb = false;
+    renderTree();
+    toast('封面已删除');
+  } catch (err) { toast('删除失败: ' + err.message); }
+};
 
 // ── Cards ──
 function buildCard(f) {
@@ -688,7 +874,16 @@ function buildCard(f) {
   img._fileHandle = f.handle;
   setupHover(d, f);
   setupCardDrag(d, f);
-  d.onclick = () => openDetail(f);
+  d.onclick = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const url = new URL(location.href);
+      url.searchParams.set('video', f.relPath);
+      window.open(url.toString(), '_blank');
+    } else {
+      openDetail(f);
+    }
+  };
   d.oncontextmenu = e => { e.preventDefault(); showCardCtxMenu(e.clientX, e.clientY, f); };
   return d;
 }
@@ -736,6 +931,7 @@ async function openDetail(file) {
   updateNavButtons();
 
   const v = $('#video');
+  v.style.display = '';
   v.style.opacity = '0';
   try {
     const f = await file.handle.getFile();
@@ -797,7 +993,7 @@ function updateNavButtons() {
 
 function showList() {
   const v = $('#video');
-  v.pause(); v.src = ''; v.controls = true;
+  v.pause(); v.src = ''; v.controls = true; v.style.display = 'none';
   stopPreview();
   S.playingClipId = null;
   S.curFile = null;
@@ -805,6 +1001,7 @@ function showList() {
   $('#listView').style.display = '';
   $('#detailView').style.display = 'none';
   $('#mainArea').scrollTop = S.scrollPos;
+  if (S.currentFolderPath) updateFolderThumb(S.currentFolderPath);
 }
 
 $('#backBtn').onclick = showList;
@@ -1011,8 +1208,8 @@ function openEditClip(clip) {
 }
 $('#cancelEditBtn').onclick = () => resetClipForm();
 
-$('#markStartBtn').onclick = () => { parseFloat($('#video').currentTime); markS = parseFloat(t.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
-$('#markEndBtn').onclick = () => { parseFloat($('#video').currentTime); markE = parseFloat(t.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
+$('#markStartBtn').onclick = () => { markS = parseFloat($('#video').currentTime.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
+$('#markEndBtn').onclick = () => { markE = parseFloat($('#video').currentTime.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
 
 // ── Keyboard Actions ──
 async function deleteCurrentVideo() {
@@ -1074,9 +1271,12 @@ async function toggleStar() {
 
 function renameCurrentVideo() {
   if (!S.curFile) return;
-  const name = prompt('新文件名（含扩展名）', S.curFile.name);
-  if (!name || !name.trim() || name.trim() === S.curFile.name) return;
-  const newName = name.trim();
+  const dotIdx = S.curFile.name.lastIndexOf('.');
+  const ext = dotIdx > 0 ? S.curFile.name.slice(dotIdx) : '';
+  const baseName = dotIdx > 0 ? S.curFile.name.slice(0, dotIdx) : S.curFile.name;
+  const input = prompt('新文件名（不含扩展名）', baseName);
+  if (!input || !input.trim() || input.trim() === baseName) return;
+  const newName = input.trim() + ext;
   try {
     S.curFile.handle.move(newName);
     const oldRel = S.curFile.relPath;
