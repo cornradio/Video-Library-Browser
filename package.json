@@ -1,7 +1,7 @@
 {
   "name": "videos-tricks",
   "version": "1.0.0",
-  "description": "极限运动视频技巧收藏",
+  "description": "Web-based video library browser with folder tree navigation, thumbnails, clip marking and keyboard shortcuts",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
