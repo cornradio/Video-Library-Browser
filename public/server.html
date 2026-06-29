@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.png">
+<title>服务器浏览 - Tricks</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#e8e8e8;--text2:#777;--text3:#444;--accent:#ff5722;--accent-dim:rgba(255,87,34,.12);--green:#66bb6a;--red:#ef5350;--radius:10px;--speed:180ms}
+html{scrollbar-color:#333 #0a0a0a}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+.header{position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:50;gap:12px}
+.header h1{font-size:18px;font-weight:700;white-space:nowrap}.header h1 span{color:var(--accent)}
+.btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all var(--speed);font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#e64a19}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{background:var(--card);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.search-input{padding:6px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:180px;transition:border-color var(--speed)}
+.search-input:focus{border-color:var(--accent)}
+.search-input::placeholder{color:var(--text3)}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:220px 1fr;margin-top:52px;min-height:calc(100vh - 52px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:12px 0;overflow-y:auto;position:sticky;top:52px;height:calc(100vh - 52px)}
+.sidebar-head{padding:8px 16px 10px;display:flex;align-items:center;justify-content:space-between}
+.sidebar-head span{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.main{padding:16px 28px 0;height:calc(100vh - 52px);overflow-y:auto}
+.toolbar{display:flex;gap:10px;margin-bottom:20px;align-items:center}
+.folder-name{font-size:13px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Tree ── */
+.tree-node{user-select:none}
+.tree-row{display:flex;align-items:center;padding:5px 8px;cursor:pointer;border-radius:6px;margin:1px 6px;transition:background var(--speed);gap:4px;font-size:13px}
+.tree-row:hover{background:rgba(255,255,255,.04)}
+.tree-row.active{background:var(--accent-dim)}
+.tree-toggle{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text3);transition:transform var(--speed);flex-shrink:0}
+.tree-toggle.open{transform:rotate(90deg)}
+.tree-toggle.hidden{visibility:hidden}
+.tree-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-count{font-size:11px;color:var(--text3);flex-shrink:0}
+.tree-kids{padding-left:10px}
+
+/* ── Grid ── */
+.empty{text-align:center;padding:80px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color var(--speed)}
+.card:hover{border-color:#333}
+.card:hover .card-reveal-btn{opacity:1}
+.card-reveal-btn:hover{background:rgba(0,0,0,.85)!important;color:var(--text)!important}
+.card-media{aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center;color:#333;font-size:32px;position:relative;overflow:hidden}
+.card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.card-media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.card-media.hovering video{display:block}
+.card-media.hovering img{opacity:0}
+.card-thumb-fail{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#333;font-size:32px}
+.card-info{padding:10px 12px}
+.card-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-meta{font-size:11px;color:var(--text3);margin-top:4px;display:flex;gap:10px}
+.card-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.card-tag{font-size:10px;padding:1px 6px;background:var(--accent-dim);color:var(--accent);border-radius:3px;cursor:pointer;transition:background var(--speed);white-space:nowrap}
+.card-tag:hover{background:rgba(255,87,34,.25)}
+.card-clip-count{font-size:11px;color:var(--accent);margin-top:4px}
+.card.placeholder .card-media{background:#0c0c0c}
+.card.placeholder .card-info{min-height:44px}
+
+/* ── Detail ── */
+.detail-topbar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
+.detail-topbar .spacer{flex:1}
+.detail-video{background:#000;border-radius:8px;overflow:hidden;margin-bottom:16px}
+.detail-video video{width:100%;max-width:1080px;max-height:80vh;object-fit:contain;display:block;margin:0 auto;transition:opacity .15s}
+.detail-name{font-size:16px;font-weight:600;margin-bottom:16px;word-break:break-all}
+.clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
+.clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.clip-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.clip-item{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:var(--bg);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all var(--speed);font-size:12px;white-space:nowrap}
+.clip-item:hover{border-color:#444;background:rgba(255,255,255,.03)}
+.clip-item.playing{border-color:var(--accent);background:var(--accent-dim)}
+.clip-name{font-size:12px}
+.clip-stop{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:20px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:inherit;transition:all var(--speed)}
+.clip-stop:hover{background:var(--accent-dim)}
+.clip-add{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px}
+.clip-add-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.clip-add-row .trim-val{font-family:monospace;font-size:13px;min-width:58px;padding:3px 7px;background:var(--card);border:1px solid var(--border);border-radius:4px;text-align:center;color:var(--text)}
+.field{margin-bottom:12px}
+.field input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+.field input:focus{border-color:var(--accent)}
+
+/* ── Context Menu ── */
+.ctx-menu{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;z-index:150;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
+.ctx-menu.show{display:block}
+.ctx-item{padding:7px 16px;font-size:13px;cursor:pointer;color:var(--text);transition:background 100ms}
+.ctx-item:hover{background:rgba(255,255,255,.06)}
+.ctx-item.danger{color:var(--red)}
+
+/* ── Folder Management ── */
+.sidebar-add{background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;padding:1px 7px;cursor:pointer;font-size:13px;line-height:1;transition:all var(--speed)}
+.sidebar-add:hover{background:var(--card);color:var(--text);border-color:#444}
+.tree-row.drop-target{background:var(--accent-dim);outline:1px dashed var(--accent);outline-offset:-1px}
+.card.dragging{opacity:.4}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Hamburger & Overlay ── */
+.hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px 4px 0;line-height:1}
+.sidebar-overlay{display:none}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .hamburger{display:block}
+  .layout{grid-template-columns:1fr}
+  .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
+  .sidebar.open{left:0}
+  .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
+  .main{padding:16px 12px 0}
+  .grid{grid-template-columns:1fr}
+  .search-input{width:100px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="hamburger" id="hamburgerBtn">&#9776;</button>
+  <h1><span>服务器</span>浏览</h1>
+  <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
+  <a href="/local.html" class="btn btn-ghost btn-sm" style="text-decoration:none">本地模式</a>
+  <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-head"><span>文件夹</span><button class="sidebar-add" id="addFolderBtn" title="新建文件夹">+</button></div>
+    <div id="tree"></div>
+  </div>
+
+  <div class="main" id="mainArea">
+    <div id="listView">
+      <div class="toolbar">
+        <input type="text" id="pathInput" placeholder="输入服务器文件夹路径，例如 D:\Videos 或 \\192.168.1.1\Share\folder" style="flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;outline:none">
+        <button class="btn btn-primary" id="openBtn">打开</button>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn" style="display:none">刷新</button>
+      </div>
+      <div id="thumbControls" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--text2);white-space:nowrap">封面截取时间</span>
+        <input type="range" id="thumbTimeSlider" min="0" max="300" value="1" step="1" style="flex:1;accent-color:var(--accent)">
+        <span id="thumbTimeVal" style="font-family:monospace;font-size:12px;color:var(--text);min-width:40px;text-align:center">1s</span>
+        <button class="btn btn-ghost btn-sm" id="refreshCoversBtn" style="white-space:nowrap">刷新封面</button>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div id="detailView" style="display:none">
+      <div class="detail-topbar">
+        <button class="btn btn-ghost btn-sm" id="backBtn">&larr; 返回</button>
+        <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
+        <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
+        <div class="spacer"></div>
+        <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div class="detail-video"><video id="video" controls loop preload="auto"></video></div>
+      <div class="detail-name" id="detailName"></div>
+      <div class="clips-section">
+        <div class="clips-head">
+          <span>片段标记</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="clip-stop" id="stopClipBtn" style="display:none">停止循环</button>
+            <button class="btn btn-ghost btn-sm" id="toggleClipAdd">+ 标记片段</button>
+          </div>
+        </div>
+        <div class="clip-list" id="clipList"></div>
+        <div class="clip-add" id="clipAddPanel" style="display:none">
+          <div id="clipEditTitle" style="display:none;font-size:13px;color:var(--accent);margin-bottom:8px;font-weight:600">编辑片段</div>
+          <div class="clip-add-row">
+            <button class="btn btn-ghost btn-sm" id="markStartBtn">起点 (A)</button>
+            <span class="trim-val" id="markStartVal">--</span>
+            <button class="btn btn-ghost btn-sm" id="markEndBtn">终点 (B)</button>
+            <span class="trim-val" id="markEndVal">--</span>
+            <button class="btn btn-ghost btn-sm" id="previewClipBtn">预览</button>
+          </div>
+          <div class="field" style="margin-top:10px;margin-bottom:10px">
+            <input type="text" id="clipNameInput" placeholder="片段名称（可选）">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" id="saveClipBtn">保存片段</button>
+            <button class="btn btn-ghost btn-sm" id="cancelEditBtn" style="display:none">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" id="ctxEdit">编辑</div>
+  <div class="ctx-item" id="ctxRename">重命名</div>
+  <div class="ctx-item danger" id="ctxDelete">删除</div>
+</div>
+
+<div class="ctx-menu" id="cardCtxMenu">
+  <div class="ctx-item" id="cardCtxRename">重命名</div>
+  <div class="ctx-item danger" id="cardCtxDelete">删除文件</div>
+</div>
+
+<div class="ctx-menu" id="folderCtxMenu">
+  <div class="ctx-item" id="folderCtxRename">重命名</div>
+  <div class="ctx-item danger" id="folderCtxDelete">删除文件夹</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+const S = {
+  tree: null,
+  clips: [], curFile: null, playingClipId: null,
+  expanded: new Set(), selPath: null,
+  navFiles: [], navIdx: -1, scrollPos: 0,
+  cardObserver: null,
+  lastBrowsePath: null,
+
+};
+
+function fileId(f) { return f.path; }
+function folderId(f) { return f.path; }
+
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Browse ──
+const savedPath = localStorage.getItem('serverViewerPath') || '';
+if (savedPath) $('#pathInput').value = savedPath;
+
+async function browse(dirPath) {
+  dirPath = dirPath.trim();
+  if (!dirPath) return;
+  localStorage.setItem('serverViewerPath', dirPath);
+  try {
+    const r = await fetch('/api/local/directory?path=' + encodeURIComponent(dirPath));
+    if (!r.ok) throw new Error((await r.json()).error);
+    S.tree = await r.json();
+    S.expanded = new Set([S.tree.path]);
+    S.selPath = S.tree.path;
+    $('#refreshBtn').style.display = '';
+    renderTree();
+    showVideosForFolder(S.tree.path);
+  } catch (err) { toast('打开失败: ' + err.message); }
+}
+
+$('#openBtn').onclick = () => browse($('#pathInput').value);
+$('#pathInput').onkeydown = e => { if (e.key === 'Enter') browse(e.target.value); };
+$('#refreshBtn').onclick = refreshCurrentFolder;
+
+async function refreshCurrentFolder() {
+  if (!S.selPath) return;
+  try {
+    const r = await fetch('/api/local/scan-folder?path=' + encodeURIComponent(S.selPath));
+    if (!r.ok) throw new Error((await r.json()).error);
+    const fresh = await r.json();
+    // Update the tree node in-place
+    const node = findFolder(S.tree, S.selPath);
+    if (node) {
+      node.videos = fresh.videos;
+      // Keep existing subfolder data (they may have their own loaded content)
+      const existingSubs = new Map(node.folders.map(f => [f.path, f]));
+      node.folders = fresh.folders.map(f => existingSubs.get(f.path) || f);
+    }
+    renderTree();
+    showVideosForFolder(S.selPath);
+    toast('已刷新');
+  } catch (e) { toast('刷新失败: ' + e.message); }
+}
+
+// Auto-open saved path on load
+if (savedPath) browse(savedPath);
+
+// ── Tree ──
+function renderTree() {
+  const tree = $('#tree');
+  tree.innerHTML = '';
+  if (S.tree) tree.appendChild(buildTreeNode(S.tree));
+}
+
+function countVideos(folder) {
+  let c = folder.videos.length;
+  for (const f of folder.folders) c += countVideos(f);
+  return c;
+}
+
+function getAllVideos(folder) {
+  let v = [...folder.videos];
+  for (const f of folder.folders) v.push(...getAllVideos(f));
+  return v;
+}
+
+function* walkTree(node) {
+  yield node;
+  for (const f of node.folders) yield* walkTree(f);
+}
+
+function findFolder(node, p) {
+  if (node.path === p) return node;
+  for (const f of node.folders) { const r = findFolder(f, p); if (r) return r; }
+  return null;
+}
+
+// Walk the tree to find a folder by matching name segments in order
+function findFolderPath(parts) {
+  let node = S.tree;
+  for (let i = 0; i < parts.length; i++) {
+    const child = node.folders.find(f => f.name === parts[i]);
+    if (!child) return null;
+    node = child;
+  }
+  return node.path;
+}
+
+function buildTreeNode(folder) {
+  const node = document.createElement('div');
+  node.className = 'tree-node';
+  const id = folder.path;
+  const hasKids = folder.folders.length > 0;
+  const isOpen = S.expanded.has(id);
+  const isActive = S.selPath === id;
+  const count = countVideos(folder);
+
+  const row = document.createElement('div');
+  row.className = 'tree-row' + (isActive ? ' active' : '');
+
+  const tog = document.createElement('span');
+  tog.className = 'tree-toggle' + (hasKids ? (isOpen ? ' open' : '') : ' hidden');
+  tog.textContent = '\u25B6';
+  if (hasKids) tog.onclick = e => {
+    e.stopPropagation();
+    isOpen ? S.expanded.delete(id) : S.expanded.add(id);
+    renderTree();
+  };
+
+  const nm = document.createElement('span');
+  nm.className = 'tree-name';
+  nm.textContent = folder.name;
+  nm.onclick = () => {
+    S.selPath = id;
+    showVideosForFolder(id);
+    renderTree();
+  };
+
+  const cnt = document.createElement('span');
+  cnt.className = 'tree-count';
+  cnt.textContent = count || '';
+
+  row.append(tog, nm, cnt);
+  row.oncontextmenu = e => { e.preventDefault(); showFolderCtxMenu(e.clientX, e.clientY, folder.path); };
+  setupTreeDrop(row, folder.path);
+  node.appendChild(row);
+
+  if (hasKids && isOpen) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tree-kids';
+    for (const child of folder.folders) wrap.appendChild(buildTreeNode(child));
+    node.appendChild(wrap);
+  }
+  return node;
+}
+
+function showVideosForFolder(folderPath) {
+  if (S.cardObserver) { S.cardObserver.disconnect(); S.cardObserver = null; }
+  S.lastBrowsePath = folderPath;
+  $('#searchInput').value = '';
+  const folder = findFolder(S.tree, folderPath);
+  if (!folder) return;
+  const videos = getAllVideos(folder);
+  S.navFiles = videos;
+
+  $('#listView').style.display = '';
+  $('#detailView').style.display = 'none';
+  $('#thumbControls').style.display = videos.length ? 'flex' : 'none';
+
+  const grid = $('#grid');
+  if (!videos.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有视频</div></div>';
+    return;
+  }
+  grid.innerHTML = '';
+
+  // Create lightweight placeholders — real content filled on scroll
+  const frag = document.createDocumentFragment();
+  videos.forEach(f => {
+    const d = document.createElement('div');
+    d.className = 'card placeholder';
+    d.dataset.path = f.path;
+    d.innerHTML = '<div class="card-media"></div><div class="card-info"></div>';
+    frag.appendChild(d);
+  });
+  grid.appendChild(frag);
+
+  // Lazy hydrate cards near viewport
+  S.cardObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const card = entry.target;
+        if (card.classList.contains('placeholder')) {
+          populateCard(card, videos.find(f => f.path === card.dataset.path));
+        }
+        S.cardObserver.unobserve(card);
+      }
+    }
+  }, { root: $('#mainArea'), rootMargin: '400px 0px' });
+
+  grid.querySelectorAll('.card.placeholder').forEach(card => S.cardObserver.observe(card));
+
+  loadClipCounts();
+}
+
+function populateCard(card, f) {
+  if (!f) return;
+  card.classList.remove('placeholder');
+  const ext = f.name.split('.').pop().toUpperCase();
+  const fid = f.path;
+
+  // Tags from folder hierarchy — strip root path
+  const rootPath = S.tree.path.replace(/\\/g, '/');
+  const fullPath = f.path.replace(/\\/g, '/');
+  const relPath = fullPath.startsWith(rootPath + '/') ? fullPath.slice(rootPath.length + 1) : fullPath;
+  const parts = relPath.split('/');
+  const tags = parts.slice(0, -1);
+  const tagsHtml = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
+
+  // Stable thumbnail URL — browser-cacheable
+  const imgSrc = `/api/local/thumbnail?path=${encodeURIComponent(f.path)}`;
+
+  card.innerHTML = `
+    <div class="card-media">
+      <img src="${imgSrc}" loading="lazy" onerror="this.style.display='none';this.parentNode.querySelector('.card-thumb-fail').style.display='flex'" style="background:#111">
+      <div class="card-thumb-fail" style="display:none">&#9655;</div>
+      <video muted loop preload="none" playsinline></video>
+      <span style="position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:rgba(0,0,0,.7);color:var(--text2)">${ext}</span>
+      <button class="card-reveal-btn" title="在资源管理器中查看" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.6);border:none;color:var(--text2);border-radius:4px;padding:3px 6px;font-size:13px;cursor:pointer;line-height:1;opacity:0;transition:opacity .15s">&#128193;</button>
+    </div>
+    <div class="card-info">
+      <div class="card-name" title="${f.name}">${f.name}</div>
+      <div class="card-meta">${f.size ? `<span>${formatSize(f.size)}</span>` : ''}</div>
+      ${tagsHtml}
+      <div class="card-clip-count" data-path="${fid}"></div>
+    </div>`;
+
+  // Reveal in Explorer button
+  const revealBtn = card.querySelector('.card-reveal-btn');
+  revealBtn.onclick = (e) => {
+    e.stopPropagation();
+    fetch(`/api/local/reveal?path=${encodeURIComponent(f.path)}`);
+  };
+
+  card.querySelectorAll('.card-tag').forEach((el, i) => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const tagParts = tags.slice(0, i + 1);
+      const targetPath = findFolderPath(tagParts);
+      if (!targetPath) return;
+      const folder = findFolder(S.tree, targetPath);
+      if (folder) {
+        S.selPath = targetPath;
+        S.expanded.add(targetPath);
+        for (let j = 1; j <= i; j++) {
+          const pp = findFolderPath(tags.slice(0, j));
+          if (pp) S.expanded.add(pp);
+        }
+        renderTree();
+        showVideosForFolder(targetPath);
+      }
+    };
+  });
+
+  setupHover(card, f);
+  setupCardDrag(card, f);
+  card.onclick = () => openDetail(f);
+  card.oncontextmenu = e => { e.preventDefault(); showCardCtxMenu(e.clientX, e.clientY, f); };
+}
+
+// ── Search ──
+function filterGrid(query) {
+  if (S.cardObserver) { S.cardObserver.disconnect(); S.cardObserver = null; }
+  const folder = findFolder(S.tree, S.lastBrowsePath);
+  if (!folder) return;
+  const all = getAllVideos(folder);
+  const q = query.trim().toLowerCase();
+  const videos = q ? all.filter(f => f.name.toLowerCase().includes(q)) : all;
+  S.navFiles = videos;
+
+  const grid = $('#grid');
+  if (!videos.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">${q ? '没有匹配的文件' : '此文件夹没有视频'}</div></div>`;
+    return;
+  }
+  grid.innerHTML = '';
+
+  const frag = document.createDocumentFragment();
+  videos.forEach(f => {
+    const d = document.createElement('div');
+    d.className = 'card placeholder';
+    d.dataset.path = f.path;
+    d.innerHTML = '<div class="card-media"></div><div class="card-info"></div>';
+    frag.appendChild(d);
+  });
+  grid.appendChild(frag);
+
+  S.cardObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const card = entry.target;
+        if (card.classList.contains('placeholder')) {
+          populateCard(card, videos.find(f => f.path === card.dataset.path));
+        }
+        S.cardObserver.unobserve(card);
+      }
+    }
+  }, { root: $('#mainArea'), rootMargin: '400px 0px' });
+
+  grid.querySelectorAll('.card.placeholder').forEach(card => S.cardObserver.observe(card));
+  loadClipCounts();
+}
+
+$('#searchInput').oninput = () => filterGrid($('#searchInput').value);
+
+// ── Thumbnail time slider & refresh ──
+$('#thumbTimeSlider').oninput = () => {
+  const v = $('#thumbTimeSlider').value;
+  const min = Math.floor(v / 60);
+  const sec = v % 60;
+  $('#thumbTimeVal').textContent = min > 0 ? `${min}m${sec}s` : `${v}s`;
+};
+
+$('#refreshCoversBtn').onclick = async () => {
+  const t = $('#thumbTimeSlider').value;
+  const cards = document.querySelectorAll('#grid .card');
+  const mainArea = $('#mainArea');
+  const viewTop = mainArea.scrollTop;
+  const viewBot = viewTop + mainArea.clientHeight + 600; // 600px buffer below viewport
+
+  // Only refresh cards that are visible or near-visible
+  const visibleImgs = [];
+  for (const card of cards) {
+    const top = card.offsetTop;
+    const bot = top + card.offsetHeight;
+    if (bot >= viewTop - 200 && top <= viewBot) {
+      const img = card.querySelector('.card-media img');
+      if (img) visibleImgs.push(img);
+    }
+  }
+
+  if (!visibleImgs.length) return toast('没有可见的封面需要刷新');
+
+  const btn = $('#refreshCoversBtn');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  let done = 0;
+  for (const img of visibleImgs) {
+    const url = new URL(img.src, location.origin);
+    const filePath = url.searchParams.get('path');
+    if (!filePath) continue;
+    const newSrc = `/api/local/thumbnail?path=${encodeURIComponent(filePath)}&t=${t}&_=${Date.now()}`;
+    await new Promise((resolve) => {
+      const preImg = new Image();
+      preImg.onload = () => { img.src = newSrc; resolve(); };
+      preImg.onerror = resolve;
+      preImg.src = newSrc;
+      setTimeout(resolve, 15000);
+    });
+    done++;
+    btn.textContent = `生成中 ${done}/${visibleImgs.length}`;
+  }
+  btn.disabled = false;
+  btn.textContent = '刷新封面';
+  toast(`已刷新 ${done} 个封面 (${t}s)`);
+};
+
+// ── Cards ──
+
+function setupHover(card, file) {
+  const media = card.querySelector('.card-media');
+  const vid = media.querySelector('video');
+  let loaded = false;
+  media.addEventListener('mouseenter', () => {
+    if (!loaded) {
+      vid.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
+      loaded = true;
+    }
+    media.classList.add('hovering');
+    vid.play().catch(() => {});
+  });
+  media.addEventListener('mouseleave', () => {
+    media.classList.remove('hovering');
+    vid.pause();
+  });
+}
+
+// ── Detail ──
+function openDetail(file) {
+  S.curFile = file;
+  S.playingClipId = null;
+  stopPreview();
+  S.navIdx = S.navFiles.findIndex(f => f.path === file.path);
+
+  document.querySelectorAll('.card-media.hovering video').forEach(v => v.pause());
+  document.querySelectorAll('.card-media.hovering').forEach(m => m.classList.remove('hovering'));
+
+  if ($('#listView').style.display !== 'none') {
+    S.scrollPos = $('#mainArea').scrollTop;
+  }
+  $('#listView').style.display = 'none';
+  $('#detailView').style.display = '';
+  $('#mainArea').scrollTop = 0;
+
+  updateNavButtons();
+
+  const v = $('#video');
+  v.style.opacity = '0';
+  v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
+  v.load();
+  v.play().catch(() => {});
+  v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
+
+  v.ontimeupdate = () => {
+    if (S.playingClipId) {
+      const clip = S.clips.find(c => c.id === S.playingClipId);
+      if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
+    }
+  };
+
+  $('#detailName').textContent = file.name;
+  $('#clipAddPanel').style.display = 'none';
+  resetClipForm();
+  loadClips();
+}
+
+function updateNavButtons() {
+  const total = S.navFiles.length;
+  const idx = S.navIdx;
+  $('#prevBtn').disabled = total <= 1;
+  $('#nextBtn').disabled = total <= 1;
+  $('#navInfo').textContent = total > 1 ? `${idx + 1} / ${total}` : '';
+}
+
+function showList() {
+  const v = $('#video');
+  v.pause(); v.src = ''; v.controls = true;
+  stopPreview();
+  S.playingClipId = null;
+  S.curFile = null;
+  $('#listView').style.display = '';
+  $('#detailView').style.display = 'none';
+  $('#mainArea').scrollTop = S.scrollPos;
+}
+
+$('#backBtn').onclick = showList;
+
+$('#prevBtn').onclick = () => {
+  if (S.navFiles.length <= 1) return;
+  S.navIdx = (S.navIdx - 1 + S.navFiles.length) % S.navFiles.length;
+  openDetail(S.navFiles[S.navIdx]);
+};
+$('#nextBtn').onclick = () => {
+  if (S.navFiles.length <= 1) return;
+  S.navIdx = (S.navIdx + 1) % S.navFiles.length;
+  openDetail(S.navFiles[S.navIdx]);
+};
+
+// ── Clip Storage (server API) ──
+async function loadClips() {
+  try {
+    const r = await fetch('/api/local/clips?path=' + encodeURIComponent(S.curFile.path));
+    S.clips = await r.json();
+  } catch { S.clips = []; }
+  renderClips();
+}
+
+function loadClipCounts() {
+  fetch('/api/local/clips-counts').then(r => r.json()).then(counts => {
+    document.querySelectorAll('.card-clip-count').forEach(el => {
+      const n = counts[el.dataset.path] || 0;
+      el.textContent = n > 0 ? `${n} 个片段` : '';
+    });
+  }).catch(() => {});
+}
+
+// ── Clips ──
+function renderClips() {
+  const list = $('#clipList');
+  $('#stopClipBtn').style.display = S.playingClipId ? '' : 'none';
+  if (!S.clips.length) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0">暂无片段</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const clip of S.clips) {
+    const item = document.createElement('div');
+    item.className = 'clip-item' + (S.playingClipId === clip.id ? ' playing' : '');
+    item.innerHTML = `<span class="clip-name">${clip.name}</span>`;
+    item.onclick = e => { if (!e.target.closest('.inline-edit')) playClip(clip); };
+    item.oncontextmenu = e => { e.preventDefault(); showCtxMenu(e.clientX, e.clientY, clip); };
+    list.appendChild(item);
+  }
+}
+
+function playClip(clip) {
+  stopPreview();
+  const v = $('#video');
+  S.playingClipId = clip.id;
+  v.controls = false;
+  v.currentTime = clip.startTime;
+  v.play();
+  renderClips();
+}
+
+function stopClip() {
+  S.playingClipId = null;
+  $('#video').controls = true;
+  renderClips();
+}
+$('#stopClipBtn').onclick = stopClip;
+
+// ── Context Menu ──
+let ctxClip = null;
+function showCtxMenu(x, y, clip) {
+  ctxClip = clip;
+  const m = $('#ctxMenu'); m.classList.add('show');
+  m.style.left = Math.min(x, window.innerWidth - 130) + 'px';
+  m.style.top = Math.min(y, window.innerHeight - 100) + 'px';
+}
+document.addEventListener('click', () => {
+  $('#ctxMenu').classList.remove('show');
+  $('#cardCtxMenu').classList.remove('show');
+  $('#folderCtxMenu').classList.remove('show');
+});
+
+$('#ctxEdit').onclick = () => { if (ctxClip) openEditClip(ctxClip); };
+$('#ctxRename').onclick = async () => {
+  if (!ctxClip) return;
+  const name = prompt('片段名称', ctxClip.name);
+  if (name && name.trim() && name.trim() !== ctxClip.name) {
+    try {
+      await fetch(`/api/local/clips/${ctxClip.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      ctxClip.name = name.trim();
+      renderClips();
+    } catch (e) { toast('重命名失败: ' + e.message); }
+  }
+};
+$('#ctxDelete').onclick = async () => {
+  if (!ctxClip) return;
+  try {
+    await fetch(`/api/local/clips/${ctxClip.id}`, { method: 'DELETE' });
+    S.clips = S.clips.filter(c => c.id !== ctxClip.id);
+    if (S.playingClipId === ctxClip.id) S.playingClipId = null;
+    renderClips();
+  } catch (e) { toast('删除失败: ' + e.message); }
+};
+
+// ── Card Context Menu (file ops) ──
+let ctxCardFile = null;
+function showCardCtxMenu(x, y, file) {
+  ctxCardFile = file;
+  const m = $('#cardCtxMenu'); m.classList.add('show');
+  m.style.left = Math.min(x, window.innerWidth - 130) + 'px';
+  m.style.top = Math.min(y, window.innerHeight - 80) + 'px';
+}
+
+$('#cardCtxRename').onclick = async () => {
+  if (!ctxCardFile) return;
+  const name = prompt('文件名', ctxCardFile.name);
+  if (!name || !name.trim() || name.trim() === ctxCardFile.name) return;
+  try {
+    const r = await fetch('/api/local/file', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: ctxCardFile.path, name: name.trim() })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    const newPath = data.newPath;
+    // Migrate clips from old path to new path
+    await fetch(`/api/local/clips?path=${encodeURIComponent(ctxCardFile.path)}`)
+      .then(r => r.json()).then(async clips => {
+        for (const c of clips) await fetch(`/api/local/clips/${c.id}`, { method: 'DELETE' });
+        for (const c of clips) {
+          await fetch('/api/local/clips', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoPath: newPath, name: c.name, startTime: c.startTime, endTime: c.endTime })
+          });
+        }
+      });
+    ctxCardFile.name = name.trim();
+    ctxCardFile.path = newPath;
+    renderTree();
+    showVideosForFolder(S.selPath);
+    toast('已重命名');
+  } catch (e) { toast('重命名失败: ' + e.message); }
+};
+
+$('#cardCtxDelete').onclick = async () => {
+  if (!ctxCardFile) return;
+  if (!confirm(`确定删除「${ctxCardFile.name}」？此操作不可撤销。`)) return;
+  try {
+    const r = await fetch('/api/local/file?path=' + encodeURIComponent(ctxCardFile.path), { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).error);
+    // Remove from in-memory tree
+    const delPath = ctxCardFile.path;
+    for (const node of walkTree(S.tree)) {
+      node.videos = node.videos.filter(v => v.path !== delPath);
+    }
+    S.navFiles = S.navFiles.filter(f => f.path !== delPath);
+    // Remove card from grid
+    document.querySelectorAll('#grid .card').forEach(card => {
+      if (card.dataset.path === delPath) card.remove();
+    });
+    renderTree();
+    toast('已删除');
+  } catch (e) { toast('删除失败: ' + e.message); }
+};
+
+// ── Clip Add/Edit ──
+let editingClipId = null, markS = null, markE = null;
+
+$('#toggleClipAdd').onclick = () => {
+  const p = $('#clipAddPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  if (p.style.display === 'block') resetClipForm();
+};
+
+function resetClipForm() {
+  markS = markE = null; editingClipId = null;
+  $('#markStartVal').textContent = '--';
+  $('#markEndVal').textContent = '--';
+  $('#clipNameInput').value = '';
+  $('#clipEditTitle').style.display = 'none';
+  $('#cancelEditBtn').style.display = 'none';
+  $('#saveClipBtn').textContent = '保存片段';
+  stopPreview();
+}
+
+function openEditClip(clip) {
+  $('#clipAddPanel').style.display = 'block';
+  editingClipId = clip.id;
+  markS = clip.startTime; markE = clip.endTime;
+  $('#markStartVal').textContent = markS.toFixed(2) + 's';
+  $('#markEndVal').textContent = markE.toFixed(2) + 's';
+  $('#clipNameInput').value = clip.name;
+  $('#clipEditTitle').style.display = '';
+  $('#cancelEditBtn').style.display = '';
+  $('#saveClipBtn').textContent = '更新片段';
+}
+$('#cancelEditBtn').onclick = () => resetClipForm();
+
+$('#markStartBtn').onclick = () => { markS = parseFloat($('#video').currentTime.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
+$('#markEndBtn').onclick = () => { markE = parseFloat($('#video').currentTime.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
+
+// ── Keyboard Actions ──
+async function deleteCurrentVideo() {
+  if (!S.curFile) return;
+  if (!confirm(`确定删除「${S.curFile.name}」？此操作不可撤销。`)) return;
+  try {
+    const r = await fetch('/api/local/file?path=' + encodeURIComponent(S.curFile.path), { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).error);
+    const delPath = S.curFile.path;
+    for (const node of walkTree(S.tree)) {
+      node.videos = node.videos.filter(v => v.path !== delPath);
+    }
+    S.navFiles = S.navFiles.filter(f => f.path !== delPath);
+    document.querySelectorAll('#grid .card').forEach(card => {
+      if (card.dataset.path === delPath) card.remove();
+    });
+    renderTree();
+    toast('已删除');
+    // Navigate to next/prev or back to list
+    if (S.navFiles.length === 0) { showList(); return; }
+    if (S.navIdx >= S.navFiles.length) S.navIdx = S.navFiles.length - 1;
+    openDetail(S.navFiles[S.navIdx]);
+  } catch (e) { toast('删除失败: ' + e.message); }
+}
+
+async function toggleStar() {
+  if (!S.curFile) return;
+  const name = S.curFile.name;
+  const dotIdx = name.lastIndexOf('.');
+  const base = dotIdx > 0 ? name.slice(0, dotIdx) : name;
+  const ext = dotIdx > 0 ? name.slice(dotIdx) : '';
+  let newName;
+  if (base.endsWith('-[stared]')) {
+    newName = base.slice(0, -9) + ext;
+  } else {
+    newName = base + '-[stared]' + ext;
+  }
+  try {
+    const r = await fetch('/api/local/file', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: S.curFile.path, name: newName })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    S.curFile.name = newName;
+    S.curFile.path = data.newPath;
+    // Update navFiles reference
+    const nf = S.navFiles.find(f => f.path === S.curFile.path || f.name === name);
+    if (nf) { nf.name = newName; nf.path = data.newPath; }
+    $('#detailName').textContent = newName;
+    renderTree();
+    toast(newName.includes('[stared]') ? '已收藏' : '已取消收藏');
+  } catch (e) { toast('操作失败: ' + e.message); }
+}
+
+// Intercept space on video element to prevent native controls double-toggle
+$('#video').addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); const v = e.target; v.paused ? v.play() : v.pause(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  // Detail view navigation
+  if ($('#detailView').style.display !== 'none') {
+    if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevBtn').click(); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextBtn').click(); }
+    if (e.key === 'Escape') { $('#backBtn').click(); }
+    if (e.key === ' ' && e.target.tagName !== 'VIDEO') { e.preventDefault(); const v = $('#video'); v.paused ? v.play() : v.pause(); }
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      if (document.fullscreenElement) document.exitFullscreen();
+      else $('#video').requestFullscreen();
+    }
+    if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
+    if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
+  }
+  // Clip marking shortcuts (only when clip panel is open)
+  if ($('#clipAddPanel').style.display !== 'none') {
+    if (e.key === 'a' || e.key === 'A') $('#markStartBtn').click();
+    if (e.key === 'b' || e.key === 'B') $('#markEndBtn').click();
+  }
+});
+
+// ── Preview ──
+let previewActive = false;
+$('#previewClipBtn').onclick = () => {
+  if (markS === null || markE === null) return toast('请先标记起点和终点');
+  if (markE <= markS) return toast('终点必须大于起点');
+  const v = $('#video');
+  if (previewActive) { stopPreview(); return; }
+  previewActive = true;
+  S.playingClipId = null;
+  v.controls = false;
+  $('#previewClipBtn').textContent = '停止';
+  v.currentTime = markS; v.play();
+  v.ontimeupdate = () => { if (previewActive && v.currentTime >= markE) v.currentTime = markS; };
+  renderClips();
+};
+
+function stopPreview() {
+  if (!previewActive) return;
+  previewActive = false;
+  $('#previewClipBtn').textContent = '预览';
+  const v = $('#video');
+  v.controls = true;
+  v.ontimeupdate = () => {
+    if (S.playingClipId) {
+      const clip = S.clips.find(c => c.id === S.playingClipId);
+      if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
+    }
+  };
+}
+
+$('#saveClipBtn').onclick = async () => {
+  if (markS === null || markE === null) return toast('请先标记起点和终点');
+  if (markE <= markS) return toast('终点必须大于起点');
+  if (markE - markS < 0.3) return toast('片段至少 0.3 秒');
+  const clipName = $('#clipNameInput').value.trim() || '片段';
+  const isEdit = !!editingClipId;
+  try {
+    if (isEdit) {
+      const r = await fetch(`/api/local/clips/${editingClipId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: clipName, startTime: markS, endTime: markE })
+      });
+      if (!r.ok) throw new Error((await r.json()).error);
+      const updated = await r.json();
+      const clip = S.clips.find(c => c.id === editingClipId);
+      if (clip) { clip.name = updated.name; clip.startTime = updated.startTime; clip.endTime = updated.endTime; }
+    } else {
+      const r = await fetch('/api/local/clips', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoPath: S.curFile.path, name: clipName, startTime: markS, endTime: markE })
+      });
+      if (!r.ok) throw new Error((await r.json()).error);
+      S.clips.push(await r.json());
+    }
+  } catch (e) { return toast('保存失败: ' + e.message); }
+  renderClips();
+  resetClipForm();
+  $('#clipAddPanel').style.display = 'none';
+  toast(isEdit ? '片段已更新' : '片段已保存');
+};
+
+// ── Folder Management ──
+$('#addFolderBtn').onclick = async () => {
+  if (!S.selPath) return toast('请先选择一个文件夹');
+  const name = prompt('新文件夹名称');
+  if (!name || !name.trim()) return;
+  try {
+    const r = await fetch('/api/local/folder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentPath: S.selPath, name: name.trim() })
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    await refreshCurrentFolder();
+    toast('文件夹已创建');
+  } catch (e) { toast('创建失败: ' + e.message); }
+};
+
+// Folder context menu
+let ctxFolderPath = null;
+function showFolderCtxMenu(x, y, folderPath) {
+  ctxFolderPath = folderPath;
+  const m = $('#folderCtxMenu'); m.classList.add('show');
+  m.style.left = Math.min(x, window.innerWidth - 130) + 'px';
+  m.style.top = Math.min(y, window.innerHeight - 60) + 'px';
+}
+
+$('#folderCtxRename').onclick = async () => {
+  if (!ctxFolderPath) return;
+  if (ctxFolderPath === S.tree.path) return toast('不能重命名根文件夹');
+  const folder = findFolder(S.tree, ctxFolderPath);
+  if (!folder) return;
+  const name = prompt('文件夹名称', folder.name);
+  if (!name || !name.trim() || name.trim() === folder.name) return;
+  try {
+    const r = await fetch('/api/local/folder', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: ctxFolderPath, name: name.trim() })
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    const { newPath } = await r.json();
+    // Update in-memory tree: rename folder and all descendant paths
+    const oldPath = ctxFolderPath;
+    function updatePaths(node) {
+      if (node.path === oldPath) {
+        node.path = newPath;
+        node.name = name.trim();
+      } else if (node.path.startsWith(oldPath + '/') || node.path.startsWith(oldPath + '\\')) {
+        node.path = newPath + node.path.slice(oldPath.length);
+      }
+      for (const f of node.folders) updatePaths(f);
+      for (const v of node.videos) {
+        if (v.path.startsWith(oldPath + '/') || v.path.startsWith(oldPath + '\\')) {
+          v.path = newPath + v.path.slice(oldPath.length);
+        }
+      }
+    }
+    updatePaths(S.tree);
+    // Update selPath if we're inside the renamed folder
+    if (S.selPath === oldPath) S.selPath = newPath;
+    else if (S.selPath.startsWith(oldPath + '/') || S.selPath.startsWith(oldPath + '\\')) {
+      S.selPath = newPath + S.selPath.slice(oldPath.length);
+    }
+    renderTree();
+    showVideosForFolder(S.selPath);
+    toast('已重命名');
+  } catch (e) { toast('重命名失败: ' + e.message); }
+};
+
+$('#folderCtxDelete').onclick = async () => {
+  if (!ctxFolderPath) return;
+  if (ctxFolderPath === S.tree.path) return toast('不能删除根文件夹');
+  if (!confirm('确定删除此文件夹及其所有内容？')) return;
+  try {
+    const r = await fetch('/api/local/folder?path=' + encodeURIComponent(ctxFolderPath), { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).error);
+    // Remove from in-memory tree
+    function removeFromParent(node) {
+      node.folders = node.folders.filter(f => f.path !== ctxFolderPath);
+      for (const f of node.folders) removeFromParent(f);
+    }
+    removeFromParent(S.tree);
+    // Navigate to parent if we were inside the deleted folder
+    if (S.selPath.startsWith(ctxFolderPath)) {
+      const parentPath = path_parent(ctxFolderPath);
+      S.selPath = parentPath && findFolder(S.tree, parentPath) ? parentPath : S.tree.path;
+      S.expanded.add(S.selPath);
+    }
+    renderTree();
+    showVideosForFolder(S.selPath);
+    toast('文件夹已删除');
+  } catch (e) { toast('删除失败: ' + e.message); }
+};
+
+function path_parent(p) {
+  const parts = p.replace(/\\/g, '/').split('/');
+  parts.pop();
+  return parts.join('/') || p;
+}
+
+// Drag-and-drop: cards → tree folders
+let dragFilePaths = [];
+
+function setupCardDrag(card, file) {
+  card.draggable = true;
+  card.addEventListener('dragstart', e => {
+    // Collect selected cards or just this one
+    dragFilePaths = [file.path];
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', file.path);
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    dragFilePaths = [];
+  });
+}
+
+function setupTreeDrop(row, folderPath) {
+  row.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    row.classList.add('drop-target');
+  });
+  row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+  row.addEventListener('drop', async e => {
+    e.preventDefault();
+    row.classList.remove('drop-target');
+    console.log('[drop] fired, dragFilePaths:', dragFilePaths, 'dest:', folderPath);
+    if (!dragFilePaths.length) return console.warn('[drop] no drag files');
+    // Don't allow dropping into the same folder
+    const srcDir = dragFilePaths[0].replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+    const destDir = folderPath.replace(/\\/g, '/');
+    if (srcDir === destDir) return console.log('[drop] same folder, skip');
+    try {
+      const r = await fetch('/api/local/move-files', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePaths: dragFilePaths, destPath: folderPath })
+      });
+      const data = await r.json();
+      console.log('[drop] server response:', r.status, data);
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      if (data.errors && data.errors.length) {
+        console.error('[drop] move errors:', data.errors);
+        if (!data.moved || !data.moved.length) toast('移动失败: ' + data.errors.map(e => e.error || e).join('; '));
+        else toast(`移动了 ${data.moved.length} 个，${data.errors.length} 个失败`);
+      } else {
+        toast(`已移动 ${data.moved.length} 个文件`);
+      }
+      // Update in-memory: remove from source, add to dest
+      if (data.moved) {
+        for (const m of data.moved) {
+          for (const node of walkTree(S.tree)) {
+            node.videos = node.videos.filter(v => v.path !== m.oldPath);
+          }
+        }
+        S.navFiles = S.navFiles.filter(f => !data.moved.some(m => m.oldPath === f.path));
+        // Remove moved cards from grid
+        const movedOldPaths = new Set(data.moved.map(m => m.oldPath));
+        document.querySelectorAll('#grid .card').forEach(card => {
+          if (movedOldPaths.has(card.dataset.path)) card.remove();
+        });
+      }
+      renderTree();
+      // Expand destination in tree
+      S.expanded.add(folderPath);
+      renderTree();
+    } catch (e) { console.error('[drop] error:', e, { dragFilePaths, folderPath }); toast('移动失败: ' + (e.message || e)); }
+  });
+}
+
+// ── Mobile Sidebar Toggle ──
+function closeSidebar() {
+  $('#sidebar').classList.remove('open');
+  $('#sidebarOverlay').style.display = 'none';
+}
+$('#hamburgerBtn').onclick = () => {
+  const sb = $('#sidebar');
+  const opening = !sb.classList.contains('open');
+  sb.classList.toggle('open');
+  $('#sidebarOverlay').style.display = opening ? 'block' : 'none';
+};
+$('#sidebarOverlay').onclick = closeSidebar;
+</script>
+</body>
+</html>
