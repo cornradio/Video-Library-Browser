@@ -322,13 +322,16 @@ app.delete('/api/tricks/:trickId/clips/:clipId', (req, res) => {
 });
 
 // Delete trick + files
-app.delete('/api/tricks/:id', (req, res) => {
+app.delete('/api/tricks/:id', async (req, res) => {
   const db = readTricks();
   const idx = db.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: '未找到' });
 
   const trick = db[idx];
-  try { fs.unlinkSync(path.join(BASE, trick.videoPath)); } catch {}
+  const videoFullPath = path.join(BASE, trick.videoPath);
+  await killStreams(videoFullPath);
+  await new Promise(r => setTimeout(r, 200));
+  try { fs.unlinkSync(videoFullPath); } catch {}
   if (trick.thumbnail) {
     try { fs.unlinkSync(path.join(BASE, trick.thumbnail)); } catch {}
   }
@@ -443,12 +446,26 @@ app.get('/api/local/scan-folder', (req, res) => {
 const openStreams = new Map(); // filePath -> Set of {stream, res}
 
 function killStreams(filePath) {
-  const set = openStreams.get(filePath);
-  if (!set) return;
-  for (const s of set) {
-    try { s.stream.destroy(); s.res.end(); } catch {}
-  }
-  openStreams.delete(filePath);
+  return new Promise(resolve => {
+    const set = openStreams.get(filePath);
+    if (!set || set.size === 0) return resolve();
+    let remaining = set.size;
+    const timer = setTimeout(() => {
+      // Safety timeout: resolve after 2s even if not all streams closed
+      console.log('[killStreams] timeout, proceeding with', remaining, 'streams still open');
+      resolve();
+    }, 2000);
+    for (const s of set) {
+      const onClose = () => {
+        remaining--;
+        if (remaining <= 0) { clearTimeout(timer); resolve(); }
+      };
+      s.stream.once('close', onClose);
+      s.stream.once('error', onClose);
+      try { s.stream.destroy(); } catch {}
+      try { s.res.end(); } catch {}
+    }
+  });
 }
 
 app.get('/api/local/stream', (req, res) => {
@@ -699,7 +716,7 @@ app.get('/api/local/reveal', (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete('/api/local/file', (req, res) => {
+app.delete('/api/local/file', async (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: '缺少路径' });
   try {
@@ -708,12 +725,32 @@ app.delete('/api/local/file', (req, res) => {
       console.log('[delete] file not found:', filePath);
       return res.status(404).json({ error: '文件不存在' });
     }
-    // Kill any open streams for this file before deleting
-    killStreams(filePath);
+    // Kill any open streams for this file and wait for FDs to close
+    await killStreams(filePath);
+    // Small extra delay for Windows UNC paths to release file locks
+    await new Promise(r => setTimeout(r, 200));
+
+    // Try unlink, retry once if file still exists (Windows UNC lock issue)
     fs.unlinkSync(filePath);
-    // Verify deletion
     if (fs.existsSync(filePath)) {
-      console.log('[delete] STILL EXISTS after unlink:', filePath);
+      console.log('[delete] still exists, retrying in 500ms...');
+      await new Promise(r => setTimeout(r, 500));
+      try { fs.unlinkSync(filePath); } catch {}
+    }
+    if (fs.existsSync(filePath)) {
+      console.log('[delete] STILL EXISTS after retry:', filePath);
+      // Last resort: move to temp so it's out of sight
+      const tempDir = path.join(os.tmpdir(), 'videos-tricks-deleted');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      const tempPath = path.join(tempDir, `${Date.now()}_${path.basename(filePath)}`);
+      try {
+        fs.renameSync(filePath, tempPath);
+        console.log('[delete] moved to temp:', tempPath);
+        res.json({ success: true });
+        return;
+      } catch (e) {
+        console.log('[delete] move failed:', e.message);
+      }
       return res.status(500).json({ error: '文件删除失败 (仍存在)' });
     }
     console.log('[delete] OK:', filePath);
