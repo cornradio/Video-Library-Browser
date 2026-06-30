@@ -10,6 +10,19 @@
 :root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#e8e8e8;--text2:#777;--text3:#444;--accent:#ff5722;--accent-dim:rgba(255,87,34,.12);--green:#66bb6a;--red:#ef5350;--radius:10px;--speed:180ms}
 html{scrollbar-color:#333 #0a0a0a}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+.convert-widget{position:fixed;bottom:20px;right:20px;z-index:100;width:260px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.6);padding:14px;display:none;backdrop-filter:blur(12px)}
+.convert-widget.show{display:block}
+.convert-widget .cw-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.convert-widget .cw-title{font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.convert-widget .cw-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px;line-height:1}
+.convert-widget .cw-close:hover{color:var(--red)}
+.convert-widget .cw-file{font-size:11px;color:var(--text2);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.convert-widget .bar-track{height:5px;background:#222;border-radius:3px;overflow:hidden;margin-bottom:6px}
+.convert-widget .bar-fill{height:100%;background:linear-gradient(90deg,#ff5722,#ff9800);border-radius:3px;transition:width .3s ease;width:0%}
+.convert-widget .cw-stats{display:flex;justify-content:space-between;font-size:11px;color:var(--text2)}
+.convert-widget .cw-phase{color:#daa520}
+.convert-widget .cw-cancel{margin-top:8px;width:100%;background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 0;font-size:11px;cursor:pointer;font-family:inherit}
+.convert-widget .cw-cancel:hover{color:var(--red);border-color:var(--red)}
 .header{position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:50;gap:12px}
 .header h1{font-size:18px;font-weight:700;white-space:nowrap}.header h1 span{color:var(--accent)}
 .btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all var(--speed);font-family:inherit}
@@ -78,6 +91,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .subtitle-select select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;outline:none}
 .subtitle-download{position:absolute;right:8px;bottom:8px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;width:24px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s}
 .subtitle-download:hover{color:var(--text);background:rgba(255,255,255,.08);border-color:#444}
+.convert-quality-popup{position:fixed;z-index:160;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
+.convert-quality-popup.show{display:block}
+.convert-quality-item{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;font-size:12px;transition:all .15s}
+.convert-quality-item:hover{background:rgba(255,255,255,.05)}
+.convert-quality-item .q-name{color:var(--text);font-weight:500}
+.convert-quality-item .q-size{color:var(--text2);font-size:11px;font-family:monospace}
+.convert-quality-item .q-copy{color:#daa520;font-size:10px;margin-left:6px}
 .detail-name{font-size:16px;font-weight:600;margin-bottom:16px;word-break:break-all}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
 .clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
@@ -171,6 +191,22 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 </head>
 <body>
 
+<div class="convert-quality-popup" id="convertQualityPopup"></div>
+
+<div class="convert-widget" id="convertWidget">
+  <div class="cw-head">
+    <span class="cw-title" id="cwTitle">转换中</span>
+    <button class="cw-close" id="cwCloseBtn">&times;</button>
+  </div>
+  <div class="cw-file" id="cwFile"></div>
+  <div class="bar-track"><div class="bar-fill" id="convertBarFill"></div></div>
+  <div class="cw-stats">
+    <span class="cw-phase" id="cwPhase"></span>
+    <span id="convertInfo">0%</span>
+  </div>
+  <button class="cw-cancel" id="convertCancelBtn">取消转换</button>
+</div>
+
 <div class="header">
   <button class="hamburger" id="hamburgerBtn">&#9776;</button>
   <h1><span>本地</span>浏览</h1>
@@ -218,6 +254,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>Del</kbd><span>删除文件</span></div>
         <div class="help-shortcut"><kbd>A</kbd><span>标记起点 (片段面板开启时)</span></div>
         <div class="help-shortcut"><kbd>B</kbd><span>标记终点 (片段面板开启时)</span></div>
+        <div class="help-shortcut"><kbd>F4</kbd><span>转换视频 (任意格式)</span></div>
         <div class="help-shortcut"><kbd>Esc</kbd><span>返回列表</span></div>
       </div>
     </div>
@@ -277,6 +314,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
             <span>字幕</span>
             <select id="subtitleSelectEl"></select>
           </div>
+          <div class="subtitle-select" id="audioTrackSelect" style="display:none">
+            <span>音轨</span>
+            <select id="audioTrackSelectEl"></select>
+          </div>
           <div class="subtitle-text" id="subtitleText"></div>
           <button class="subtitle-download" id="subtitleDownloadBtn" title="下载字幕">&#8595;</button>
         </div>
@@ -324,6 +365,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 </div>
 
 <div class="ctx-menu" id="cardCtxMenu">
+  <div class="ctx-item" id="cardCtxConvert">转换视频</div>
   <div class="ctx-item" id="cardCtxRename">重命名</div>
   <div class="ctx-item danger" id="cardCtxDelete">删除文件</div>
 </div>
@@ -1131,6 +1173,35 @@ async function openDetail(file) {
     } catch (e) { toast('下载失败: ' + e.message); }
   };
 
+  // Audio track detection and switching
+  const audioSelectWrap = $('#audioTrackSelect');
+  const audioSelectEl = $('#audioTrackSelectEl');
+  audioSelectWrap.style.display = 'none';
+  v.onloadedmetadata = () => {
+    const tracks = v.audioTracks;
+    if (tracks && tracks.length > 1) {
+      audioSelectWrap.style.display = 'inline-flex';
+      panel.classList.add('show');
+      audioSelectEl.innerHTML = '';
+      for (let i = 0; i < tracks.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = tracks[i].label || tracks[i].language || ('音轨 ' + (i + 1));
+        if (tracks[i].enabled) opt.selected = true;
+        audioSelectEl.appendChild(opt);
+      }
+      audioSelectEl.onchange = () => {
+        const idx = +audioSelectEl.value;
+        for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
+      };
+    } else {
+      audioSelectWrap.style.display = 'none';
+    }
+  };
+
+  // Convert: track current file for right-click menu / F4
+  window._currentFile = file;
+
   $('#detailNameText').textContent = file.name;
   setupDetailDrag($('#detailDragIcon'), () => S.curFile);
   // Show tags relative to root folder (always consistent)
@@ -1363,19 +1434,102 @@ $('#cardCtxDelete').onclick = async () => {
     const all = loadAllLocalClips();
     delete all[ctxCardFile.relPath];
     saveAllLocalClips(all);
-    // Update in-memory tree: remove video from parent folder
+    // Update in-memory tree
     const folder = findFolder(S.tree, S.selPath);
     if (folder) {
       folder.videos = folder.videos.filter(v => v.relPath !== ctxCardFile.relPath);
     }
-    // Remove card from grid
-    const card = document.querySelector(`#grid .card[data-path="${CSS.escape(ctxCardFile.relPath)}"]`);
-    if (card) card.remove();
     S.navFiles = S.navFiles.filter(f => f.relPath !== ctxCardFile.relPath);
     renderTree();
-    loadClipCounts();
+    showVideosForFolder(S.selPath);
     toast('已删除');
   } catch (e) { toast('删除失败: ' + e.message); }
+};
+
+// ── Convert Video (global, triggered from right-click menu or F4) ──
+async function startConvertLocal(file) {
+  const widget = $('#convertWidget');
+  const barFill = $('#convertBarFill');
+  const infoEl = $('#convertInfo');
+  const phaseEl = $('#cwPhase');
+  const fileEl = $('#cwFile');
+  const titleEl = $('#cwTitle');
+  widget.classList.add('show');
+  barFill.style.width = '0%';
+  infoEl.textContent = '0%';
+  phaseEl.textContent = '上传中';
+  fileEl.textContent = file.name;
+  titleEl.textContent = '转换中';
+
+  const cancelBtn = $('#convertCancelBtn');
+  let xhr = null;
+  let cancelled = false;
+  cancelBtn.onclick = () => {
+    cancelled = true;
+    if (xhr) xhr.abort();
+    widget.classList.remove('show');
+    toast('已取消');
+  };
+  $('#cwCloseBtn').onclick = () => widget.classList.remove('show');
+
+  try {
+    const fileObj = await file.handle.getFile();
+    if (cancelled) return;
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/local/convert-mkv-upload');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          barFill.style.width = pct + '%';
+          infoEl.textContent = pct + '%';
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+        else reject(new Error(JSON.parse(xhr.responseText).error || '上传失败'));
+      };
+      xhr.onerror = () => reject(new Error('上传失败'));
+      xhr.onabort = () => reject(new Error('已取消'));
+      const formData = new FormData();
+      formData.append('file', fileObj, file.name);
+      xhr.send(formData);
+    });
+
+    if (cancelled) return;
+    phaseEl.textContent = '';
+    barFill.style.width = '100%';
+    infoEl.textContent = '100%';
+    titleEl.textContent = '转换完成';
+
+    toast('转换完成，正在下载...');
+    const a = document.createElement('a');
+    a.href = uploadResult.downloadUrl;
+    a.download = file.name.replace(/\.[^.]+$/, '.mp4');
+    a.click();
+
+    setTimeout(() => widget.classList.remove('show'), 3000);
+  } catch (err) {
+    if (!cancelled) {
+      titleEl.textContent = '转换失败';
+      phaseEl.textContent = '';
+      infoEl.textContent = '';
+      toast('转换失败: ' + err.message);
+      setTimeout(() => widget.classList.remove('show'), 3000);
+    }
+  }
+}
+
+$('#cardCtxConvert').onclick = (e) => {
+  e.stopPropagation();
+  if (!ctxCardFile) return;
+  startConvertLocal(ctxCardFile);
+};
+
+// F4: convert current file
+window._triggerConvert = () => {
+  if (window._currentFile) startConvertLocal(window._currentFile);
 };
 
 // ── Clip Add/Edit ──
@@ -1419,18 +1573,19 @@ async function deleteCurrentVideo() {
   if (!S.curFile) return;
   if (!confirm(`确定删除「${S.curFile.name}」？此操作不可撤销。`)) return;
   try {
+    // Clear video element first to release file handle
+    const v = $('#video');
+    v.pause(); v.removeAttribute('src'); v.load();
     const parent = S.parentHandles[S.curFile.relPath];
     await parent.removeEntry(S.curFile.name);
     const delRel = S.curFile.relPath;
-    // Remove from in-memory tree
+    S.curFile = null;
+    // Update in-memory tree
     const folder = findFolder(S.tree, S.selPath);
     if (folder) folder.videos = folder.videos.filter(v => v.relPath !== delRel);
     S.navFiles = S.navFiles.filter(f => f.relPath !== delRel);
-    // Remove card from grid
-    const card = document.querySelector(`#grid .card[data-path="${CSS.escape(delRel)}"]`);
-    if (card) card.remove();
     renderTree();
-    loadClipCounts();
+    showVideosForFolder(S.selPath);
     toast('已删除');
     if (S.navFiles.length === 0) { showList(); return; }
     if (S.navIdx >= S.navFiles.length) S.navIdx = S.navFiles.length - 1;
@@ -1556,6 +1711,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
+    if (e.key === 'F4') { e.preventDefault(); if (window._triggerConvert) window._triggerConvert(); }
   }
   // Clip marking shortcuts (only when clip panel is open)
   if ($('#clipAddPanel').style.display !== 'none') {

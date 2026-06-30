@@ -10,6 +10,19 @@
 :root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#e8e8e8;--text2:#777;--text3:#444;--accent:#ff5722;--accent-dim:rgba(255,87,34,.12);--green:#66bb6a;--red:#ef5350;--radius:10px;--speed:180ms}
 html{scrollbar-color:#333 #0a0a0a}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+.convert-widget{position:fixed;bottom:20px;right:20px;z-index:100;width:260px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.6);padding:14px;display:none;backdrop-filter:blur(12px)}
+.convert-widget.show{display:block}
+.convert-widget .cw-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.convert-widget .cw-title{font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.convert-widget .cw-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px;line-height:1}
+.convert-widget .cw-close:hover{color:var(--red)}
+.convert-widget .cw-file{font-size:11px;color:var(--text2);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.convert-widget .bar-track{height:5px;background:#222;border-radius:3px;overflow:hidden;margin-bottom:6px}
+.convert-widget .bar-fill{height:100%;background:linear-gradient(90deg,#ff5722,#ff9800);border-radius:3px;transition:width .3s ease;width:0%}
+.convert-widget .cw-stats{display:flex;justify-content:space-between;font-size:11px;color:var(--text2)}
+.convert-widget .cw-phase{color:#daa520}
+.convert-widget .cw-cancel{margin-top:8px;width:100%;background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 0;font-size:11px;cursor:pointer;font-family:inherit}
+.convert-widget .cw-cancel:hover{color:var(--red);border-color:var(--red)}
 .header{position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:50;gap:12px}
 .header h1{font-size:18px;font-weight:700;white-space:nowrap}.header h1 span{color:var(--accent)}
 .btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all var(--speed);font-family:inherit}
@@ -78,6 +91,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .subtitle-select select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;outline:none}
 .subtitle-download{position:absolute;right:8px;bottom:8px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;width:24px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s}
 .subtitle-download:hover{color:var(--text);background:rgba(255,255,255,.08);border-color:#444}
+.convert-quality-popup{position:fixed;z-index:160;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none}
+.convert-quality-popup.show{display:block}
+.convert-quality-item{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;font-size:12px;transition:all .15s}
+.convert-quality-item:hover{background:rgba(255,255,255,.05)}
+.convert-quality-item .q-name{color:var(--text);font-weight:500}
+.convert-quality-item .q-size{color:var(--text2);font-size:11px;font-family:monospace}
+.convert-quality-item .q-copy{color:#daa520;font-size:10px;margin-left:6px}
 .detail-name{font-size:16px;font-weight:600;margin-bottom:16px;word-break:break-all}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
 .clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
@@ -175,6 +195,22 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 </head>
 <body>
 
+<div class="convert-quality-popup" id="convertQualityPopup"></div>
+
+<div class="convert-widget" id="convertWidget">
+  <div class="cw-head">
+    <span class="cw-title" id="cwTitle">转换中</span>
+    <button class="cw-close" id="cwCloseBtn">&times;</button>
+  </div>
+  <div class="cw-file" id="cwFile"></div>
+  <div class="bar-track"><div class="bar-fill" id="convertBarFill"></div></div>
+  <div class="cw-stats">
+    <span class="cw-phase" id="cwPhase"></span>
+    <span id="convertInfo">0%</span>
+  </div>
+  <button class="cw-cancel" id="convertCancelBtn">取消转换</button>
+</div>
+
 <div class="header">
   <button class="hamburger" id="hamburgerBtn">&#9776;</button>
   <h1><span>服务器</span>浏览</h1>
@@ -223,6 +259,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>A</kbd><span>标记起点 (片段面板开启时)</span></div>
         <div class="help-shortcut"><kbd>B</kbd><span>标记终点 (片段面板开启时)</span></div>
         <div class="help-shortcut"><kbd>Esc</kbd><span>返回列表</span></div>
+        <div class="help-shortcut"><kbd>F4</kbd><span>转换视频 (任意视频)</span></div>
       </div>
     </div>
   </div>
@@ -285,6 +322,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
             <span>字幕</span>
             <select id="subtitleSelectEl"></select>
           </div>
+          <div class="subtitle-select" id="audioTrackSelect" style="display:none">
+            <span>音轨</span>
+            <select id="audioTrackSelectEl"></select>
+          </div>
           <div class="subtitle-text" id="subtitleText"></div>
           <button class="subtitle-download" id="subtitleDownloadBtn" title="下载字幕">&#8595;</button>
         </div>
@@ -332,6 +373,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 </div>
 
 <div class="ctx-menu" id="cardCtxMenu">
+  <div class="ctx-item" id="cardCtxConvert">转换视频</div>
   <div class="ctx-item" id="cardCtxRename">重命名</div>
   <div class="ctx-item danger" id="cardCtxDelete">删除文件</div>
 </div>
@@ -1079,6 +1121,40 @@ function openDetail(file, noPush) {
     a.click();
   };
 
+  // Audio track detection and switching
+  const audioSelectWrap = $('#audioTrackSelect');
+  const audioSelectEl = $('#audioTrackSelectEl');
+  audioSelectWrap.style.display = 'none';
+  v.onloadedmetadata = () => {
+    const tracks = v.audioTracks;
+    if (tracks && tracks.length > 1) {
+      audioSelectWrap.style.display = 'inline-flex';
+      panel.classList.add('show');
+      audioSelectEl.innerHTML = '';
+      for (let i = 0; i < tracks.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = tracks[i].label || tracks[i].language || ('音轨 ' + (i + 1));
+        if (tracks[i].enabled) opt.selected = true;
+        audioSelectEl.appendChild(opt);
+      }
+      audioSelectEl.onchange = () => {
+        const idx = +audioSelectEl.value;
+        for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
+      };
+    } else {
+      audioSelectWrap.style.display = 'none';
+    }
+  };
+
+  // Convert: probe data for quality panel (used by right-click menu)
+  window._currentFile = file;
+  window._probeData = null;
+  fetch('/api/local/probe?filePath=' + encodeURIComponent(file.path))
+    .then(r => r.json())
+    .then(data => { window._probeData = data; })
+    .catch(() => {});
+
   $('#detailNameText').textContent = file.name;
   setupDetailDrag($('#detailDragIcon'), () => S.curFile);
   // Show tags relative to root folder (always consistent)
@@ -1289,6 +1365,7 @@ document.addEventListener('click', () => {
   $('#ctxMenu').classList.remove('show');
   $('#cardCtxMenu').classList.remove('show');
   $('#folderCtxMenu').classList.remove('show');
+  $('#convertQualityPopup').classList.remove('show');
 });
 
 $('#ctxEdit').onclick = () => { if (ctxClip) openEditClip(ctxClip); };
@@ -1377,19 +1454,133 @@ $('#cardCtxDelete').onclick = async () => {
   try {
     const r = await fetch('/api/local/file?path=' + encodeURIComponent(ctxCardFile.path), { method: 'DELETE' });
     if (!r.ok) throw new Error((await r.json()).error);
-    // Remove from in-memory tree
-    const delPath = ctxCardFile.path;
-    for (const node of walkTree(S.tree)) {
-      node.videos = node.videos.filter(v => v.path !== delPath);
-    }
-    S.navFiles = S.navFiles.filter(f => f.path !== delPath);
-    // Remove card from grid
-    document.querySelectorAll('#grid .card').forEach(card => {
-      if (card.dataset.path === delPath) card.remove();
-    });
-    renderTree();
     toast('已删除');
+    await refreshCurrentFolder(false);
   } catch (e) { toast('删除失败: ' + e.message); }
+};
+
+// ── Convert Video (global, triggered from right-click menu or F4) ──
+function formatSize(bytes) {
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+  return (bytes / 1048576).toFixed(0) + ' MB';
+}
+
+function showConvertMenu(x, y, file) {
+  const popup = $('#convertQualityPopup');
+  popup.classList.remove('show');
+  popup.innerHTML = '<div style="padding:8px 12px;color:var(--text3);font-size:11px">加载中...</div>';
+  popup.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+  popup.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+  popup.classList.add('show');
+  popup.onclick = (e) => e.stopPropagation();
+
+  const isMkv = file.path.toLowerCase().endsWith('.mkv');
+
+  fetch('/api/local/probe?filePath=' + encodeURIComponent(file.path))
+    .then(r => r.json())
+    .then(probeData => {
+      const origSize = probeData.size;
+      const presets = isMkv ? probeData.presets : probeData.presets.filter(p => p.key !== 'copy');
+      popup.innerHTML = presets.map(p => {
+        const isCopy = p.key === 'copy';
+        const sizeStr = formatSize(p.estimatedSize);
+        const ratio = isCopy ? '' : ` (${Math.round(p.estimatedSize / origSize * 100)}%)`;
+        return `<div class="convert-quality-item" data-key="${p.key}">
+          <span class="q-name">${p.name}${isCopy ? '<span class="q-copy">直接复制</span>' : ''}</span>
+          <span class="q-size">${sizeStr}${ratio}</span>
+        </div>`;
+      }).join('');
+      popup.querySelectorAll('.convert-quality-item').forEach(el => {
+        el.onclick = () => { popup.classList.remove('show'); startConvert(el.dataset.key, file); };
+      });
+    })
+    .catch(() => {
+      popup.innerHTML = '<div style="padding:8px 12px;color:var(--red);font-size:11px">探测失败</div>';
+    });
+}
+
+function startConvert(quality, file) {
+  const widget = $('#convertWidget');
+  const barFill = $('#convertBarFill');
+  const infoEl = $('#convertInfo');
+  const phaseEl = $('#cwPhase');
+  const fileEl = $('#cwFile');
+  const titleEl = $('#cwTitle');
+  widget.classList.add('show');
+  barFill.style.width = '0%';
+  infoEl.textContent = '0%';
+  phaseEl.textContent = '';
+  fileEl.textContent = file.name;
+  titleEl.textContent = '转换中';
+
+  const es = new EventSource('/api/local/convert-mkv-stream?filePath=' + encodeURIComponent(file.path) + '&quality=' + encodeURIComponent(quality));
+
+  $('#convertCancelBtn').onclick = () => {
+    es.close();
+    widget.classList.remove('show');
+    toast('转换已取消');
+  };
+  $('#cwCloseBtn').onclick = () => widget.classList.remove('show');
+
+  es.onmessage = async (e) => {
+    const data = JSON.parse(e.data);
+    if (data.progress !== undefined) {
+      barFill.style.width = data.progress + '%';
+      infoEl.textContent = data.progress + '% · ' + (data.time || '');
+    }
+    if (data.phase) phaseEl.textContent = data.phase;
+    if (data.done) {
+      es.close();
+      titleEl.textContent = '转换完成';
+      phaseEl.textContent = '';
+      infoEl.textContent = '100%';
+      barFill.style.width = '100%';
+      toast('转换完成');
+      const folderPath = file.path.replace(/[\\/][^\\/]+$/, '');
+      const refreshed = await fetch('/api/local/scan-folder?path=' + encodeURIComponent(folderPath)).then(r => r.json());
+      if (S.tree && S.tree.path === folderPath) {
+        S.tree.videos = refreshed.videos;
+        S.tree.folders = refreshed.folders;
+      }
+      S.navFiles = refreshed.videos;
+      const newName = data.newPath ? data.newPath.replace(/[\\/]+/g, '/').split('/').pop() : null;
+      if (newName) {
+        const newFile = refreshed.videos.find(v => v.name === newName);
+        if (newFile) openDetail(newFile, true);
+      }
+      setTimeout(() => widget.classList.remove('show'), 3000);
+    }
+    if (data.error) {
+      es.close();
+      titleEl.textContent = '转换失败';
+      phaseEl.textContent = '';
+      infoEl.textContent = '';
+      toast(data.error);
+      setTimeout(() => widget.classList.remove('show'), 3000);
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    widget.classList.remove('show');
+  };
+}
+
+$('#cardCtxConvert').onclick = (e) => {
+  e.stopPropagation();
+  if (!ctxCardFile) return;
+  const m = $('#cardCtxMenu');
+  const rect = m.getBoundingClientRect();
+  showConvertMenu(rect.right + 4, rect.top, ctxCardFile);
+};
+
+// F4: open convert menu for current file
+window._triggerConvert = () => {
+  if (window._currentFile) {
+    const popup = $('#convertQualityPopup');
+    if (popup.classList.contains('show')) popup.classList.remove('show');
+    else showConvertMenu(window.innerWidth / 2 - 90, window.innerHeight / 2 - 100, window._currentFile);
+  }
 };
 
 // ── Clip Add/Edit ──
@@ -1433,18 +1624,14 @@ async function deleteCurrentVideo() {
   if (!S.curFile) return;
   if (!confirm(`确定删除「${S.curFile.name}」？此操作不可撤销。`)) return;
   try {
+    // Clear video element first to release file handle
+    const v = $('#video');
+    v.pause(); v.removeAttribute('src'); v.load();
     const r = await fetch('/api/local/file?path=' + encodeURIComponent(S.curFile.path), { method: 'DELETE' });
     if (!r.ok) throw new Error((await r.json()).error);
-    const delPath = S.curFile.path;
-    for (const node of walkTree(S.tree)) {
-      node.videos = node.videos.filter(v => v.path !== delPath);
-    }
-    S.navFiles = S.navFiles.filter(f => f.path !== delPath);
-    document.querySelectorAll('#grid .card').forEach(card => {
-      if (card.dataset.path === delPath) card.remove();
-    });
-    renderTree();
+    S.curFile = null;
     toast('已删除');
+    await refreshCurrentFolder(false);
     // Navigate to next/prev or back to list
     if (S.navFiles.length === 0) { showList(); return; }
     if (S.navIdx >= S.navFiles.length) S.navIdx = S.navFiles.length - 1;
@@ -1571,6 +1758,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
+    if (e.key === 'F4') { e.preventDefault(); if (window._triggerConvert) window._triggerConvert(); }
   }
   // Clip marking shortcuts (only when clip panel is open)
   if ($('#clipAddPanel').style.display !== 'none') {

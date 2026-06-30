@@ -4,10 +4,21 @@ const path = require('path');
 const fs = require('fs');
 const { exec, execFile } = require('child_process');
 const { randomUUID } = require('crypto');
+const os = require('os');
 
 const PORT = process.env.PORT || process.argv[2] || 3000;
 const BASE = __dirname;
 const UPLOADS = path.join(BASE, 'uploads');
+
+// Video quality presets for transcoding
+const QUALITY_PRESETS = {
+  copy: { name: '直接复制', vbitrate: 0, abitrate: 0, scale: null },
+  '1080p-high': { name: '1080p 高画质', vbitrate: 8000, abitrate: 128, scale: 1080 },
+  '1080p': { name: '1080p 省空间', vbitrate: 4000, abitrate: 128, scale: 1080 },
+  '720p': { name: '720p 手机', vbitrate: 2000, abitrate: 96, scale: 720 },
+  '480p': { name: '480p 最小', vbitrate: 1000, abitrate: 64, scale: 480 }
+};
+const NULL_DEV = os.platform() === 'win32' ? 'NUL' : '/dev/null';
 const TRICKS_FILE = path.join(BASE, 'data', 'tricks.json');
 const CATS_FILE = path.join(BASE, 'data', 'categories.json');
 
@@ -19,7 +30,7 @@ const funnyNames = [
   '物理老师哭了','牛顿棺材板','轮胎想飞','地面摩擦战士','我是来滑的'
 ];
 
-for (const d of ['uploads/videos', 'uploads/thumbnails', 'data']) {
+for (const d of ['uploads/videos', 'uploads/thumbnails', 'uploads/trimmed', 'data']) {
   const p = path.join(BASE, d);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 }
@@ -48,10 +59,10 @@ function getDescendantIds(cats, parentId) {
 function generateThumbnail(videoPath, thumbName) {
   return new Promise(resolve => {
     const tp = path.join(UPLOADS, 'thumbnails', thumbName);
-    exec(
-      `ffmpeg -y -i "${videoPath}" -ss 00:00:01 -vframes 1 -vf "scale=480:-1" "${tp}"`,
-      err => resolve(err ? null : `/uploads/thumbnails/${thumbName}`)
-    );
+    execFile('ffmpeg', [
+      '-y', '-ss', '00:00:01', '-i', videoPath,
+      '-vframes', '1', '-vf', 'scale=480:-1', tp
+    ], err => resolve(err ? null : `/uploads/thumbnails/${thumbName}`));
   });
 }
 
@@ -249,21 +260,24 @@ app.get('/api/tricks/:trickId/clips/:clipId/export', async (req, res) => {
 
       // Generate palette
       await new Promise((resolve, reject) => {
-        exec(
-          `ffmpeg -y -ss ${clip.startTime} -t ${dur} -i "${inputPath}" -vf "fps=15,scale=480:-1:flags=lanczos,palettegen" "${palettePath}"`,
-          err => err ? reject(err) : resolve()
-        );
+        execFile('ffmpeg', [
+          '-y', '-ss', String(clip.startTime), '-t', dur, '-i', inputPath,
+          '-vf', 'fps=15,scale=480:-1:flags=lanczos,palettegen',
+          palettePath
+        ], err => err ? reject(err) : resolve());
       });
 
       // Generate GIF using palette
       await new Promise((resolve, reject) => {
-        exec(
-          `ffmpeg -y -ss ${clip.startTime} -t ${dur} -i "${inputPath}" -i "${palettePath}" -filter_complex "[0:v]fps=15,scale=480:-1:flags=lanczos[v];[v][1:v]paletteuse" "${outputPath}"`,
-          err => {
-            try { fs.unlinkSync(palettePath); } catch {}
-            err ? reject(err) : resolve();
-          }
-        );
+        execFile('ffmpeg', [
+          '-y', '-ss', String(clip.startTime), '-t', dur, '-i', inputPath,
+          '-i', palettePath,
+          '-filter_complex', '[0:v]fps=15,scale=480:-1:flags=lanczos[v];[v][1:v]paletteuse',
+          outputPath
+        ], (err) => {
+          try { fs.unlinkSync(palettePath); } catch {}
+          err ? reject(err) : resolve();
+        });
       });
 
       res.download(outputPath, `${safeName}.gif`, err => {
@@ -273,17 +287,19 @@ app.get('/api/tricks/:trickId/clips/:clipId/export', async (req, res) => {
       const outputPath = path.join(UPLOADS, 'trimmed', `${safeName}_${Date.now()}.mp4`);
 
       await new Promise((resolve, reject) => {
-        exec(
-          `ffmpeg -y -i "${inputPath}" -ss ${clip.startTime} -t ${dur} -c copy -avoid_negative_ts make_zero "${outputPath}"`,
-          err => {
-            if (!err) return resolve();
-            // Fallback: re-encode
-            exec(
-              `ffmpeg -y -i "${inputPath}" -ss ${clip.startTime} -t ${dur} -c:v libx264 -c:a aac "${outputPath}"`,
-              err2 => err2 ? reject(err2) : resolve()
-            );
-          }
-        );
+        execFile('ffmpeg', [
+          '-y', '-ss', String(clip.startTime), '-i', inputPath,
+          '-t', dur, '-c', 'copy', '-avoid_negative_ts', 'make_zero',
+          outputPath
+        ], (err) => {
+          if (!err) return resolve();
+          // Fallback: re-encode
+          execFile('ffmpeg', [
+            '-y', '-ss', String(clip.startTime), '-i', inputPath,
+            '-t', dur, '-c:v', 'libx264', '-c:a', 'aac',
+            outputPath
+          ], (err2) => err2 ? reject(err2) : resolve());
+        });
       });
 
       res.download(outputPath, `${safeName}.mp4`, err => {
@@ -423,22 +439,47 @@ app.get('/api/local/scan-folder', (req, res) => {
   }
 });
 
+// Track open file streams so we can destroy them before deletion
+const openStreams = new Map(); // filePath -> Set of {stream, res}
+
+function killStreams(filePath) {
+  const set = openStreams.get(filePath);
+  if (!set) return;
+  for (const s of set) {
+    try { s.stream.destroy(); s.res.end(); } catch {}
+  }
+  openStreams.delete(filePath);
+}
+
 app.get('/api/local/stream', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).send('No path');
   try {
     const stat = fs.statSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    const mimeMap = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.wmv': 'video/x-ms-wmv', '.m4v': 'video/mp4' };
+    const mimeMap = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.wmv': 'video/x-msvideo', '.m4v': 'video/mp4' };
     const contentType = mimeMap[ext] || 'application/octet-stream';
     const range = req.headers.range;
+
+    function track(stream) {
+      if (!openStreams.has(filePath)) openStreams.set(filePath, new Set());
+      const entry = { stream, res };
+      openStreams.get(filePath).add(entry);
+      const cleanup = () => {
+        const s = openStreams.get(filePath);
+        if (s) { s.delete(entry); if (s.size === 0) openStreams.delete(filePath); }
+      };
+      stream.on('end', cleanup);
+      stream.on('close', cleanup);
+      stream.on('error', cleanup);
+      res.on('close', cleanup);
+    }
+
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
-      // Clamp end to file size - 1
       const safeEnd = Math.min(end, stat.size - 1);
-      // Validate range
       if (start > safeEnd || start >= stat.size) {
         res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
         return res.end();
@@ -455,6 +496,7 @@ app.get('/api/local/stream', (req, res) => {
         if (!res.headersSent) res.status(500).send('Stream error');
         else res.end();
       });
+      track(stream);
       stream.pipe(res);
     } else {
       res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': contentType, 'Accept-Ranges': 'bytes' });
@@ -464,6 +506,7 @@ app.get('/api/local/stream', (req, res) => {
         if (!res.headersSent) res.status(500).send('Stream error');
         else res.end();
       });
+      track(stream);
       stream.pipe(res);
     }
   } catch (err) {
@@ -589,16 +632,14 @@ app.get('/api/local/clips/:id/export', async (req, res) => {
     // Try stream copy first (fast), fallback to re-encode
     await new Promise((resolve, reject) => {
       execFile('ffmpeg', [
-        '-y', '-i', inputPath,
-        '-ss', String(clip.startTime), '-t', dur,
-        '-c', 'copy', '-avoid_negative_ts', 'make_zero',
+        '-y', '-ss', String(clip.startTime), '-i', inputPath,
+        '-t', dur, '-c', 'copy', '-avoid_negative_ts', 'make_zero',
         outputPath
       ], (err) => {
         if (!err) return resolve();
         execFile('ffmpeg', [
-          '-y', '-i', inputPath,
-          '-ss', String(clip.startTime), '-t', dur,
-          '-c:v', 'libx264', '-c:a', 'aac',
+          '-y', '-ss', String(clip.startTime), '-i', inputPath,
+          '-t', dur, '-c:v', 'libx264', '-c:a', 'aac',
           outputPath
         ], (err2) => err2 ? reject(err2) : resolve());
       });
@@ -662,9 +703,25 @@ app.delete('/api/local/file', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: '缺少路径' });
   try {
+    console.log('[delete] attempt:', filePath);
+    if (!fs.existsSync(filePath)) {
+      console.log('[delete] file not found:', filePath);
+      return res.status(404).json({ error: '文件不存在' });
+    }
+    // Kill any open streams for this file before deleting
+    killStreams(filePath);
     fs.unlinkSync(filePath);
+    // Verify deletion
+    if (fs.existsSync(filePath)) {
+      console.log('[delete] STILL EXISTS after unlink:', filePath);
+      return res.status(500).json({ error: '文件删除失败 (仍存在)' });
+    }
+    console.log('[delete] OK:', filePath);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('[delete] error:', filePath, '-', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.patch('/api/local/file', (req, res) => {
@@ -722,19 +779,19 @@ app.patch('/api/local/move-files', async (req, res) => {
   const moved = [];
   const errors = [];
   for (const fp of filePaths) {
-    // Check source exists before attempting move
-    if (!fs.existsSync(fp)) {
-      console.error('[move-files] source not found:', fp);
-      errors.push({ path: fp, error: '源文件不存在' });
-      continue;
-    }
     const dest = path.join(destPath, path.basename(fp));
+    console.log('[move-files] attempting:', fp, '->', dest);
     try {
       // Try native rename first (fast, works on same volume)
       fs.renameSync(fp, dest);
       moved.push({ oldPath: fp, newPath: dest });
     } catch (renameErr) {
       // If rename fails (e.g. cross-volume), fall back to copy + delete
+      if (renameErr.code === 'ENOENT') {
+        console.error('[move-files] source not found:', fp);
+        errors.push({ path: fp, error: '源文件不存在' });
+        continue;
+      }
       try {
         fs.copyFileSync(fp, dest);
         fs.unlinkSync(fp);
@@ -747,6 +804,256 @@ app.patch('/api/local/move-files', async (req, res) => {
   }
   console.log('[move-files] result:', { moved: moved.length, errors: errors.length });
   res.json({ success: true, moved, errors });
+});
+
+// ── MKV to MP4 conversion (SSE streaming with progress) ──
+// ── Probe video info (duration, size) for quality estimation ──
+app.get('/api/local/probe', (req, res) => {
+  const filePath = req.query.filePath;
+  if (!filePath) return res.status(400).json({ error: '缺少路径' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
+  execFile('ffprobe', [
+    '-v', 'error', '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1', filePath
+  ], (err, stdout) => {
+    const duration = err ? 0 : parseFloat(stdout.trim()) || 0;
+    let size = 0;
+    try { size = fs.statSync(filePath).size; } catch {}
+    res.json({ duration, size, presets: Object.entries(QUALITY_PRESETS).map(([key, p]) => ({
+      key, name: p.name,
+      estimatedSize: p.vbitrate > 0 ? Math.round((p.vbitrate + p.abitrate) * 1000 / 8 * duration) : size
+    }))});
+  });
+});
+
+// ── Video conversion with SSE progress (supports any video format + quality presets) ──
+app.get('/api/local/convert-mkv-stream', (req, res) => {
+  const filePath = req.query.filePath;
+  const quality = req.query.quality || 'copy';
+  const preset = QUALITY_PRESETS[quality] || QUALITY_PRESETS.copy;
+
+  if (!filePath) return res.status(400).json({ error: '缺少路径' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
+  const ext = path.extname(filePath).toLowerCase();
+  if (!VIDEO_EXTS.has(ext)) return res.status(400).json({ error: '不支持的视频格式' });
+
+  const isMkv = ext === '.mkv';
+  const isCopy = quality === 'copy';
+
+  // Copy mode only makes sense for MKV → MP4
+  if (isCopy && !isMkv) return res.status(400).json({ error: '直接复制仅支持 MKV 文件' });
+
+  // Build output path
+  let mp4Path;
+  if (isCopy) {
+    // MKV → MP4 (same folder, replace extension)
+    mp4Path = filePath.replace(/\.mkv$/i, '.mp4');
+  } else {
+    // Transcode: add quality suffix (e.g. movie_720p.mp4)
+    const baseName = path.basename(filePath, ext);
+    const dir = path.dirname(filePath);
+    mp4Path = path.join(dir, `${baseName}_${quality}.mp4`);
+  }
+  if (fs.existsSync(mp4Path)) return res.status(400).json({ error: '输出文件已存在: ' + path.basename(mp4Path) });
+
+  // SSE setup
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  res.flushHeaders();
+  const send = (data) => res.write('data: ' + JSON.stringify(data) + '\n\n');
+
+  // Get video duration with ffprobe
+  execFile('ffprobe', [
+    '-v', 'error', '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1', filePath
+  ], (err, stdout) => {
+    const totalDuration = err ? 0 : parseFloat(stdout.trim()) || 0;
+
+    console.log('[convert-mkv] starting:', filePath, 'quality:', quality, 'duration:', totalDuration);
+
+    // Build ffmpeg args based on quality
+    const isCopy = quality === 'copy';
+    let ffmpegProcess;
+
+    if (isCopy) {
+      // Stream copy (fast, no re-encode)
+      ffmpegProcess = execFile('ffmpeg', [
+        '-y', '-i', filePath,
+        '-map', '0:v', '-map', '0:a',
+        '-c', 'copy',
+        mp4Path
+      ], handleDone);
+    } else {
+      // Two-pass encoding
+      const vBitrate = preset.vbitrate + 'k';
+      const aBitrate = preset.abitrate + 'k';
+      const passLogFile = path.join(UPLOADS, 'trimmed', `ffmpeg2pass_${Date.now()}`);
+
+      const scaleFilter = preset.scale ? ['-vf', `scale=-2:${preset.scale}`] : null;
+      const pass1Args = [
+        '-y', '-i', filePath,
+        '-map', '0:v',
+        '-c:v', 'libx264', '-b:v', vBitrate,
+        '-pass', '1', '-passlogfile', passLogFile,
+        '-an', '-f', 'mp4', NULL_DEV
+      ];
+      if (scaleFilter) {
+        const idx = pass1Args.indexOf('-c:v');
+        pass1Args.splice(idx, 0, scaleFilter[0], scaleFilter[1]);
+      }
+
+      const pass2Args = [
+        '-y', '-i', filePath,
+        '-map', '0:v', '-map', '0:a',
+        '-c:v', 'libx264', '-b:v', vBitrate,
+        '-pass', '2', '-passlogfile', passLogFile,
+        '-c:a', 'aac', '-b:a', aBitrate,
+        mp4Path
+      ];
+      if (scaleFilter) {
+        const idx = pass2Args.indexOf('-c:v');
+        pass2Args.splice(idx, 0, scaleFilter[0], scaleFilter[1]);
+      }
+
+      // Pass 1
+      send({ progress: 0, phase: '分析中' });
+      const pass1 = execFile('ffmpeg', pass1Args, (err) => {
+        if (err) {
+          cleanupPassLog(passLogFile);
+          handleDone(err);
+          return;
+        }
+        // Pass 2
+        send({ progress: 0, phase: '编码中' });
+        ffmpegProcess = execFile('ffmpeg', pass2Args, (err) => {
+          cleanupPassLog(passLogFile);
+          handleDone(err);
+        });
+        // Parse pass 2 stderr for progress
+        attachProgress(ffmpegProcess, totalDuration, '编码中');
+        req.on('close', () => killProcess(ffmpegProcess));
+      });
+
+      // Parse pass 1 stderr for progress
+      attachProgress(pass1, totalDuration, '分析中');
+      req.on('close', () => killProcess(pass1));
+      return;
+    }
+
+    // Parse stderr for progress (copy mode)
+    attachProgress(ffmpegProcess, totalDuration, '');
+    req.on('close', () => killProcess(ffmpegProcess));
+  });
+
+  let completed = false;
+
+  function handleDone(err) {
+    completed = true;
+    if (err) {
+      try { fs.unlinkSync(mp4Path); } catch {}
+      console.error('[convert] failed:', err.message);
+      send({ error: '转换失败: ' + err.message });
+      res.end();
+    } else {
+      // Only delete source for MKV→copy mode; keep original for transcodes
+      if (isCopy && isMkv) {
+        try { fs.unlinkSync(filePath); } catch {}
+      }
+      console.log('[convert] done:', mp4Path);
+      send({ done: true, newPath: mp4Path });
+      res.end();
+    }
+  }
+
+  function attachProgress(proc, duration, phase) {
+    let stderrBuf = '';
+    proc.stderr.on('data', (chunk) => {
+      stderrBuf += chunk.toString();
+      const matches = stderrBuf.match(/time=(\d+:\d+:\d+\.\d+)/g);
+      if (matches) {
+        const last = matches[matches.length - 1];
+        const timeStr = last.replace('time=', '');
+        const parts = timeStr.split(':');
+        const currentSec = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+        const progress = duration > 0 ? Math.min(100, Math.round((currentSec / duration) * 100)) : 0;
+        send({ progress, time: timeStr.split('.')[0], phase });
+        if (stderrBuf.length > 2048) stderrBuf = stderrBuf.slice(-2048);
+      }
+    });
+  }
+
+  function killProcess(proc) {
+    if (completed) return; // Don't touch anything if conversion finished
+    if (proc && !proc.killed) {
+      proc.kill();
+      try { fs.unlinkSync(mp4Path); } catch {}
+    }
+  }
+
+  function cleanupPassLog(passLogFile) {
+    try { fs.unlinkSync(passLogFile + '-0.log'); } catch {}
+    try { fs.unlinkSync(passLogFile + '-0.log.mbtree'); } catch {}
+  }
+});
+
+// ── MKV to MP4 conversion (upload mode for FSA/local) ──
+const convertStorage = multer.diskStorage({
+  destination: (_req, _f, cb) => cb(null, path.join(UPLOADS, 'trimmed')),
+  filename: (_req, file, cb) => cb(null, `convert_${Date.now()}${path.extname(file.originalname).toLowerCase()}`)
+});
+const convertUpload = multer({ storage: convertStorage, limits: { fileSize: 4 * 1024 * 1024 * 1024 } });
+
+app.post('/api/local/convert-mkv-upload', convertUpload.single('file'), multerErrHandler, async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '未上传文件' });
+  const inputPath = req.file.path;
+  const mp4Name = path.basename(req.file.originalname, path.extname(req.file.originalname)) + '.mp4';
+  const outputPath = path.join(UPLOADS, 'trimmed', `converted_${Date.now()}.mp4`);
+
+  console.log('[convert-mkv-upload] starting:', inputPath);
+
+  try {
+    await new Promise((resolve, reject) => {
+      execFile('ffmpeg', [
+        '-y', '-i', inputPath,
+        '-map', '0:v', '-map', '0:a',
+        '-c', 'copy',
+        outputPath
+      ], (err, stdout, stderr) => {
+        if (err) {
+          console.error('[convert-mkv-upload] ffmpeg error:', stderr?.slice(-500));
+          reject(err);
+        } else resolve();
+      });
+    });
+
+    // Clean up uploaded MKV
+    try { fs.unlinkSync(inputPath); } catch {}
+
+    console.log('[convert-mkv-upload] done:', outputPath);
+    const downloadUrl = '/api/local/convert-download?file=' + encodeURIComponent(path.basename(outputPath)) + '&name=' + encodeURIComponent(mp4Name);
+    res.json({ success: true, downloadUrl });
+  } catch (err) {
+    try { fs.unlinkSync(inputPath); } catch {}
+    try { fs.unlinkSync(outputPath); } catch {}
+    console.error('[convert-mkv-upload] failed:', err.message);
+    res.status(500).json({ error: '转换失败: ' + err.message });
+  }
+});
+
+app.get('/api/local/convert-download', (req, res) => {
+  const fileName = req.query.file;
+  const displayName = req.query.name || 'converted.mp4';
+  if (!fileName) return res.status(400).send('No file');
+  const filePath = path.join(UPLOADS, 'trimmed', fileName);
+  if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+  res.download(filePath, displayName, () => {
+    // Clean up after download
+    setTimeout(() => { try { fs.unlinkSync(filePath); } catch {} }, 5000);
+  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
