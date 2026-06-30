@@ -71,6 +71,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .detail-topbar .spacer{flex:1}
 .detail-video{background:#000;border-radius:8px;overflow:hidden;margin-bottom:16px}
 .detail-video video{width:100%;max-width:1080px;max-height:80vh;object-fit:contain;display:block;margin:0 auto;transition:opacity .15s}
+.subtitle-panel{display:none;position:relative;margin:-8px auto 16px;max-width:1080px;background:var(--card);border:1px solid var(--border);border-radius:0 0 8px 8px;padding:10px 16px;min-height:48px}
+.subtitle-panel.show{display:block}
+.subtitle-text{font-size:15px;color:var(--text);line-height:1.6;display:inline-block;vertical-align:middle;min-height:24px}
+.subtitle-select{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);margin-right:8px;vertical-align:middle}
+.subtitle-select select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;outline:none}
+.subtitle-download{position:absolute;right:8px;bottom:8px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;width:24px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s}
+.subtitle-download:hover{color:var(--text);background:rgba(255,255,255,.08);border-color:#444}
 .detail-name{font-size:16px;font-weight:600;margin-bottom:16px;word-break:break-all}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
 .clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
@@ -81,7 +88,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .clip-name{font-size:12px}
 .clip-stop{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:20px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:inherit;transition:all var(--speed)}
 .clip-stop:hover{background:var(--accent-dim)}
-.clip-add{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px}
+.clip-add{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;position:sticky;bottom:0;z-index:10;box-shadow:0 -4px 12px rgba(0,0,0,.4)}
 .clip-add-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .clip-add-row .trim-val{font-family:monospace;font-size:13px;min-width:58px;padding:3px 7px;background:var(--card);border:1px solid var(--border);border-radius:4px;text-align:center;color:var(--text)}
 .field{margin-bottom:12px}
@@ -101,7 +108,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .tree-row.drop-target{background:var(--accent-dim);outline:1px dashed var(--accent);outline-offset:-1px}
 .card.dragging{opacity:.4}
 
-.detail-drag-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:grab;border-radius:4px;color:var(--text2);vertical-align:middle;margin-left:8px;transition:all .15s}
+.detail-drag-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:grab;border-radius:4px;color:var(--text2);vertical-align:middle;margin-right:8px;transition:all .15s;flex-shrink:0}
 .detail-drag-icon:hover{color:var(--text);background:rgba(255,255,255,.08)}
 .detail-drag-icon:active{cursor:grabbing}
 .detail-drag-icon.dragging{opacity:.4}
@@ -115,6 +122,29 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .help-title{font-size:11px;color:var(--accent);font-weight:600;padding:4px 16px 2px;text-transform:uppercase;letter-spacing:.5px}
 .help-panel a{display:block;padding:5px 16px;font-size:13px;color:var(--text);text-decoration:none;transition:background .1s}
 .help-panel a:hover{background:var(--hover)}
+
+.history-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.history-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.github-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none}
+.github-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.help-shortcuts{padding:4px 16px 8px}
+.help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
+.help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
+.help-shortcut span{color:var(--text2)}
+.history-panel{display:none;position:fixed;top:52px;right:60px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;width:380px;max-height:480px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.history-panel.show{display:block}
+.history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.history-head span{font-size:12px;color:var(--text2);font-weight:600}
+.history-clear{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:inherit;padding:2px 6px;border-radius:4px;transition:all .15s}
+.history-clear:hover{color:var(--accent);background:var(--accent-dim)}
+.history-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.history-card{cursor:pointer;border-radius:6px;overflow:hidden;border:1px solid var(--border);transition:border-color .15s}
+.history-card:hover{border-color:#444}
+.history-card-media{aspect-ratio:16/9;background:#0a0a0a;position:relative;overflow:hidden}
+.history-card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.history-card-name{font-size:11px;padding:4px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.history-card-time{font-size:9px;color:var(--text3);padding:0 6px 4px}
+.history-empty{text-align:center;padding:30px 10px;color:var(--text3);font-size:12px}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -147,6 +177,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
   <a href="/server.html" class="btn btn-ghost btn-sm" style="text-decoration:none">服务器模式</a>
   <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
+  <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
+  <button class="history-btn" id="historyBtn" title="播放历史"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+  <div class="history-panel" id="historyPanel">
+    <div class="history-head">
+      <span>播放历史</span>
+      <button class="history-clear" id="historyClearBtn">清空</button>
+    </div>
+    <div class="history-grid" id="historyGrid"></div>
+  </div>
   <button class="help-btn" id="helpBtn" title="资源导航">?</button>
   <div class="help-panel" id="helpPanel">
     <div class="help-section">
@@ -167,6 +206,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       <div class="help-title">工具</div>
       <a href="https://www.mediaarea.net/MediaInfo" target="_blank">MediaInfo (视频信息)</a>
       <a href="https://ffmpeg.org" target="_blank">FFmpeg</a>
+    </div>
+    <div class="help-section">
+      <div class="help-title">快捷键</div>
+      <div class="help-shortcuts">
+        <div class="help-shortcut"><kbd>↑</kbd><span>上一个视频</span></div>
+        <div class="help-shortcut"><kbd>↓</kbd><span>下一个视频</span></div>
+        <div class="help-shortcut"><kbd>F</kbd><span>全屏播放</span></div>
+        <div class="help-shortcut"><kbd>R</kbd><span>重命名文件</span></div>
+        <div class="help-shortcut"><kbd>Z</kbd><span>收藏/取消收藏</span></div>
+        <div class="help-shortcut"><kbd>Del</kbd><span>删除文件</span></div>
+        <div class="help-shortcut"><kbd>A</kbd><span>标记起点 (片段面板开启时)</span></div>
+        <div class="help-shortcut"><kbd>B</kbd><span>标记终点 (片段面板开启时)</span></div>
+        <div class="help-shortcut"><kbd>Esc</kbd><span>返回列表</span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -212,13 +265,23 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <div id="detailView" style="display:none">
       <div class="detail-topbar">
         <button class="btn btn-ghost btn-sm" id="backBtn">&larr; 返回</button>
-        <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
-        <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
         <div class="spacer"></div>
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
+        <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
+        <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
       </div>
-      <div class="detail-video"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
-      <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span id="detailNameText"></span><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span></div>
+      <div class="detail-player" id="detailPlayer">
+        <div class="detail-video"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
+        <div class="subtitle-panel" id="subtitlePanel">
+          <div class="subtitle-select" id="subtitleSelect" style="display:none">
+            <span>字幕</span>
+            <select id="subtitleSelectEl"></select>
+          </div>
+          <div class="subtitle-text" id="subtitleText"></div>
+          <button class="subtitle-download" id="subtitleDownloadBtn" title="下载字幕">&#8595;</button>
+        </div>
+      </div>
+      <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span><span id="detailNameText"></span></div>
       <div id="detailTags" style="padding:0 24px 8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="clips-section">
         <div class="clips-head">
@@ -256,6 +319,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item" id="ctxEdit">编辑</div>
   <div class="ctx-item" id="ctxRename">重命名</div>
+  <div class="ctx-item" id="ctxExport">导出 MP4</div>
   <div class="ctx-item danger" id="ctxDelete">删除</div>
 </div>
 
@@ -441,7 +505,7 @@ async function refreshLocalFolder(folderPath, showToast = true) {
     if (!folder) return;
     const dirHandle = await getDirHandle(folderPath);
     // Re-read only direct children of this folder
-    const newVideos = [], newFolderNames = [];
+    const newVideos = [], newFolderNames = [], subtitleFiles = [];
     for await (const [entryName, entryHandle] of dirHandle.entries()) {
       const childRel = folderPath ? folderPath + '/' + entryName : entryName;
       S.parentHandles[childRel] = dirHandle;
@@ -451,10 +515,18 @@ async function refreshLocalFolder(folderPath, showToast = true) {
           let size = 0;
           try { size = (await entryHandle.getFile()).size; } catch {}
           newVideos.push({ name: entryName, handle: entryHandle, relPath: childRel, size });
+        } else if (['.srt', '.ass', '.ssa', '.vtt'].includes(ext)) {
+          subtitleFiles.push({ name: entryName, handle: entryHandle, relPath: childRel });
         }
       } else if (entryHandle.kind === 'directory') {
         newFolderNames.push(entryName);
       }
+    }
+    // Match subtitle files to videos by base name
+    for (const v of newVideos) {
+      const base = v.name.slice(0, v.name.lastIndexOf('.'));
+      const subs = subtitleFiles.filter(s => s.name.slice(0, s.name.lastIndexOf('.')) === base);
+      if (subs.length) v.subtitles = subs;
     }
     // Update videos
     folder.videos = newVideos;
@@ -527,7 +599,7 @@ $('#releaseBtn').onclick = () => {
 };
 
 async function walkDir(handle, name, relPath) {
-  const videos = [], folders = [];
+  const videos = [], folders = [], subtitleFiles = [];
   let hasThumb = false;
   for await (const [entryName, entryHandle] of handle.entries()) {
     const childRel = relPath ? relPath + '/' + entryName : entryName;
@@ -539,10 +611,18 @@ async function walkDir(handle, name, relPath) {
         let size = 0;
         try { size = (await entryHandle.getFile()).size; } catch {}
         videos.push({ name: entryName, handle: entryHandle, relPath: childRel, size });
+      } else if (['.srt', '.ass', '.ssa', '.vtt'].includes(ext)) {
+        subtitleFiles.push({ name: entryName, handle: entryHandle, relPath: childRel });
       }
     } else if (entryHandle.kind === 'directory') {
       folders.push(await walkDir(entryHandle, entryName, childRel));
     }
+  }
+  // Match subtitle files to videos by base name
+  for (const v of videos) {
+    const base = v.name.slice(0, v.name.lastIndexOf('.'));
+    const subs = subtitleFiles.filter(s => s.name.slice(0, s.name.lastIndexOf('.')) === base);
+    if (subs.length) v.subtitles = subs;
   }
   return { name, relPath, videos, folders, hasThumb };
 }
@@ -911,12 +991,78 @@ function setupHover(card, file) {
   });
 }
 
+// ── Subtitle parsers ──
+function parseSRT(text) {
+  const blocks = text.trim().replace(/\r/g, '').split(/\n\n+/);
+  const cues = [];
+  for (const b of blocks) {
+    const lines = b.split('\n');
+    if (lines.length < 2) continue;
+    const m = lines[1].match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
+    if (!m) continue;
+    cues.push({
+      start: +m[1]*3600 + +m[2]*60 + +m[3] + +m[4]/1000,
+      end: +m[5]*3600 + +m[6]*60 + +m[7] + +m[8]/1000,
+      text: lines.slice(2).join('\n').replace(/<[^>]*>/g, '')
+    });
+  }
+  return cues;
+}
+
+function parseVTT(text) {
+  return parseSRT(text.replace(/^WEBVTT[^\n]*\n/, ''));
+}
+
+function parseASS(text) {
+  const cues = [];
+  let inEvents = false, fmt = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (line.trim() === '[Events]') { inEvents = true; continue; }
+    if (line.startsWith('[')) { inEvents = false; continue; }
+    if (inEvents && line.startsWith('Format:')) {
+      fmt = line.slice(7).split(',').map(s => s.trim());
+    } else if (inEvents && line.startsWith('Dialogue:')) {
+      const vals = line.slice(9).split(',');
+      const si = fmt.indexOf('Start'), ei = fmt.indexOf('End'), ti = fmt.indexOf('Text');
+      if (si < 0 || ei < 0 || ti < 0) continue;
+      const toSec = s => { const p = s.trim().split(':'); return +p[0]*3600 + +p[1]*60 + parseFloat(p[2]); };
+      const text = vals.slice(ti).join(',').replace(/\{[^}]*\}/g, '').replace(/\\N/g, '\n').trim();
+      cues.push({ start: toSec(vals[si]), end: toSec(vals[ei]), text });
+    }
+  }
+  return cues;
+}
+
+let _subtitleCues = [];
+let _subtitleFileList = [];
+
+async function loadSubtitle(subEntry) {
+  try {
+    const file = await subEntry.handle.getFile();
+    const text = await file.text();
+    const ext = subEntry.name.split('.').pop().toLowerCase();
+    _subtitleCues = ext === 'vtt' ? parseVTT(text) : ext === 'ass' || ext === 'ssa' ? parseASS(text) : parseSRT(text);
+  } catch {}
+}
+
+function updateSubtitle(time) {
+  const cue = _subtitleCues.find(c => time >= c.start && time <= c.end);
+  const el = $('#subtitleText');
+  if (cue) {
+    el.textContent = cue.text;
+  } else {
+    el.textContent = '';
+  }
+}
+
 // ── Detail ──
 async function openDetail(file) {
   S.curFile = file;
   S.playingClipId = null;
   stopPreview();
   S.navIdx = S.navFiles.findIndex(f => f.relPath === file.relPath);
+
+  addHistory(file);
 
   document.querySelectorAll('.card-media.hovering video').forEach(v => v.pause());
   document.querySelectorAll('.card-media.hovering').forEach(m => m.classList.remove('hovering'));
@@ -942,6 +1088,48 @@ async function openDetail(file) {
     v.play().catch(() => {});
     v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
   } catch (e) { toast('无法加载视频: ' + e.message); }
+
+  v.ontimeupdate = () => {
+    if (_subtitleCues.length) updateSubtitle(v.currentTime);
+  };
+
+  // Subtitle panel
+  _subtitleCues = [];
+  _subtitleFileList = file.subtitles || [];
+  const panel = $('#subtitlePanel');
+  const selWrap = $('#subtitleSelect');
+  const selEl = $('#subtitleSelectEl');
+  if (_subtitleFileList.length) {
+    panel.classList.add('show');
+    selWrap.style.display = 'flex';
+    if (_subtitleFileList.length > 1) {
+      selEl.style.display = '';
+      selEl.innerHTML = _subtitleFileList.map((s, i) => `<option value="${i}">${s.name}</option>`).join('');
+      selEl.onchange = () => loadSubtitle(_subtitleFileList[selEl.value]);
+    } else {
+      selEl.style.display = 'none';
+    }
+    loadSubtitle(_subtitleFileList[0]);
+  } else {
+    panel.classList.remove('show');
+    selWrap.style.display = 'none';
+  }
+
+  // Subtitle download button
+  $('#subtitleDownloadBtn').onclick = async () => {
+    if (!_subtitleFileList.length) return;
+    const idx = selEl.value || 0;
+    const sub = _subtitleFileList[idx];
+    try {
+      const file = await sub.handle.getFile();
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = sub.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { toast('下载失败: ' + e.message); }
+  };
 
   $('#detailNameText').textContent = file.name;
   setupDetailDrag($('#detailDragIcon'), () => S.curFile);
@@ -1108,6 +1296,21 @@ $('#ctxRename').onclick = () => {
     saveClips();
     renderClips();
   }
+};
+$('#ctxExport').onclick = async () => {
+  if (!ctxClip) return;
+  toast('正在导出，请稍候…');
+  try {
+    const r = await fetch(`/api/local/clips/${ctxClip.id}/export`);
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error || '导出失败'); }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = ctxClip.name.replace(/[^\w\u4e00-\u9fff-]/g, '_') + '.mp4';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('导出完成');
+  } catch (e) { toast('导出失败: ' + e.message); }
 };
 $('#ctxDelete').onclick = () => {
   if (!ctxClip) return;
@@ -1348,12 +1551,8 @@ document.addEventListener('keydown', e => {
   if ($('#detailView').style.display !== 'none') {
     if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevBtn').click(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextBtn').click(); }
-    if (e.key === 'Escape') { $('#backBtn').click(); }
-    if (e.key === 'f' || e.key === 'F') {
-      e.preventDefault();
-      if (document.fullscreenElement) document.exitFullscreen();
-      else $('#video').requestFullscreen();
-    }
+    if (e.key === 'Escape') { if (document.fullscreenElement) document.exitFullscreen(); else $('#backBtn').click(); }
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); const v = $('#video'); if (document.fullscreenElement) document.exitFullscreen(); else v.requestFullscreen().catch(() => {}); }
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
@@ -1657,6 +1856,85 @@ $('#hamburgerBtn').onclick = () => {
   $('#sidebarOverlay').style.display = opening ? 'block' : 'none';
 };
 $('#sidebarOverlay').onclick = closeSidebar;
+
+// ── History ──
+const HISTORY_MAX = 30;
+const HISTORY_KEY = 'videoHistory';
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function addHistory(file) {
+  let history = getHistory().filter(h => h.path !== file.relPath && h.relPath !== file.relPath);
+  history.unshift({ relPath: file.relPath, name: file.name, time: Date.now() });
+  if (history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+function formatRelativeTime(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return '刚刚';
+  if (min < 60) return min + '分钟前';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + '小时前';
+  const d = Math.floor(hr / 24);
+  if (d < 7) return d + '天前';
+  return new Date(ts).toLocaleDateString();
+}
+
+function renderHistory() {
+  const grid = $('#historyGrid');
+  const history = getHistory();
+  if (!history.length) {
+    grid.innerHTML = '<div class="history-empty" style="grid-column:1/-1">暂无播放记录</div>';
+    return;
+  }
+  grid.innerHTML = history.map((h, i) => `
+    <div class="history-card" data-idx="${i}">
+      <div class="history-card-media"><span style="display:flex;align-items:center;justify-content:center;height:100%;color:#333;font-size:24px">&#9655;</span></div>
+      <div class="history-card-name" title="${h.name}">${h.name}</div>
+      <div class="history-card-time">${formatRelativeTime(h.time)}</div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.history-card').forEach(card => {
+    card.onclick = () => {
+      const h = history[+card.dataset.idx];
+      if (!h || !S.tree) return toast('请先打开一个文件夹');
+      const allVids = getAllVideos(S.tree);
+      const target = allVids.find(v => v.relPath === h.relPath);
+      if (target) {
+        openDetail(target);
+        $('#historyPanel').classList.remove('show');
+      } else {
+        toast('视频不在当前目录中');
+      }
+    };
+  });
+}
+
+$('#historyBtn').onclick = (e) => {
+  e.stopPropagation();
+  const panel = $('#historyPanel');
+  const wasOpen = panel.classList.contains('show');
+  $('#helpPanel').classList.remove('show');
+  if (!wasOpen) renderHistory();
+  panel.classList.toggle('show');
+};
+document.addEventListener('click', (e) => {
+  if (!$('#historyPanel').contains(e.target) && e.target !== $('#historyBtn')) {
+    $('#historyPanel').classList.remove('show');
+  }
+});
+$('#historyPanel').onclick = (e) => e.stopPropagation();
+
+$('#historyClearBtn').onclick = () => {
+  if (!confirm('清空所有播放历史？')) return;
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+};
 </script>
 </body>
 </html>

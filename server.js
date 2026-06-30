@@ -333,6 +333,7 @@ function readLocalClips() { try { return JSON.parse(fs.readFileSync(LOCAL_CLIPS_
 function writeLocalClips(d) { fs.writeFileSync(LOCAL_CLIPS_FILE, JSON.stringify(d, null, 2)); }
 
 const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.m4v']);
+const SUBTITLE_EXTS = new Set(['.srt', '.ass', '.ssa', '.vtt']);
 
 app.get('/api/local/directory', (req, res) => {
   const dirPath = req.query.path;
@@ -346,14 +347,25 @@ app.get('/api/local/directory', (req, res) => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       const videos = [];
       const folders = [];
+      const subtitleFiles = [];
       for (const e of entries) {
         if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
           const fp = path.join(dir, e.name);
           let size = 0;
           try { size = fs.statSync(fp).size; } catch {}
           videos.push({ name: e.name, path: fp, size });
+        } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
+          subtitleFiles.push(e.name);
         } else if (e.isDirectory()) {
           folders.push(scan(path.join(dir, e.name)));
+        }
+      }
+      // Match subtitle files to videos by base name
+      for (const v of videos) {
+        const base = path.basename(v.name, path.extname(v.name));
+        const subs = subtitleFiles.filter(s => path.basename(s, path.extname(s)) === base);
+        if (subs.length) {
+          v.subtitles = subs.map(s => ({ name: s, path: path.join(dir, s) }));
         }
       }
       videos.sort((a, b) => a.name.localeCompare(b.name));
@@ -379,16 +391,27 @@ app.get('/api/local/scan-folder', (req, res) => {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
     const videos = [];
     const folders = [];
+    const subtitleFiles = [];
     for (const e of entries) {
       if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
         const fp = path.join(dirPath, e.name);
         let size = 0;
         try { size = fs.statSync(fp).size; } catch {}
         videos.push({ name: e.name, path: fp, size });
+      } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
+        subtitleFiles.push(e.name);
       } else if (e.isDirectory()) {
         const subPath = path.join(dirPath, e.name);
         const hasThumb = fs.existsSync(path.join(subPath, '.TThumb.PNG'));
         folders.push({ name: e.name, path: subPath, videos: [], folders: [], hasThumb });
+      }
+    }
+    // Match subtitle files to videos by base name
+    for (const v of videos) {
+      const base = path.basename(v.name, path.extname(v.name));
+      const subs = subtitleFiles.filter(s => path.basename(s, path.extname(s)) === base);
+      if (subs.length) {
+        v.subtitles = subs.map(s => ({ name: s, path: path.join(dirPath, s) }));
       }
     }
     videos.sort((a, b) => a.name.localeCompare(b.name));
@@ -413,21 +436,51 @@ app.get('/api/local/stream', (req, res) => {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+      // Clamp end to file size - 1
+      const safeEnd = Math.min(end, stat.size - 1);
+      // Validate range
+      if (start > safeEnd || start >= stat.size) {
+        res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
+        return res.end();
+      }
       res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+        'Content-Range': `bytes ${start}-${safeEnd}/${stat.size}`,
         'Accept-Ranges': 'bytes',
-        'Content-Length': end - start + 1,
+        'Content-Length': safeEnd - start + 1,
         'Content-Type': contentType
       });
-      fs.createReadStream(filePath, { start, end }).pipe(res);
+      const stream = fs.createReadStream(filePath, { start, end: safeEnd });
+      stream.on('error', (err) => {
+        console.error('Stream read error:', err.message);
+        if (!res.headersSent) res.status(500).send('Stream error');
+        else res.end();
+      });
+      stream.pipe(res);
     } else {
       res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': contentType, 'Accept-Ranges': 'bytes' });
-      fs.createReadStream(filePath).pipe(res);
+      const stream = fs.createReadStream(filePath);
+      stream.on('error', (err) => {
+        console.error('Stream read error:', err.message);
+        if (!res.headersSent) res.status(500).send('Stream error');
+        else res.end();
+      });
+      stream.pipe(res);
     }
   } catch (err) {
     console.error('Stream 404:', filePath, '-', err.message);
-    res.status(404).send('File not found');
+    if (!res.headersSent) res.status(404).send('File not found');
   }
+});
+
+// ── Subtitle file ──
+app.get('/api/local/subtitle', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: '缺少路径' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
+  const ext = path.extname(filePath).toLowerCase();
+  const ct = ext === '.vtt' ? 'text/vtt' : ext === '.ass' || ext === '.ssa' ? 'text/x-ssa' : 'text/plain';
+  res.setHeader('Content-Type', ct + '; charset=utf-8');
+  fs.createReadStream(filePath).pipe(res);
 });
 
 
@@ -518,6 +571,46 @@ app.delete('/api/local/clips/:id', (req, res) => {
   let db = readLocalClips();
   db = db.filter(c => c.id !== req.params.id);
   writeLocalClips(db); res.json({ success: true });
+});
+
+app.get('/api/local/clips/:id/export', async (req, res) => {
+  try {
+    const db = readLocalClips();
+    const clip = db.find(c => c.id === req.params.id);
+    if (!clip) return res.status(404).json({ error: '片段未找到' });
+
+    const inputPath = clip.videoPath;
+    if (!fs.existsSync(inputPath)) return res.status(404).json({ error: '视频文件不存在' });
+
+    const dur = (clip.endTime - clip.startTime).toFixed(2);
+    const safeName = clip.name.replace(/[^\w\u4e00-\u9fff-]/g, '_');
+    const outputPath = path.join(UPLOADS, 'trimmed', `${safeName}_${Date.now()}.mp4`);
+
+    // Try stream copy first (fast), fallback to re-encode
+    await new Promise((resolve, reject) => {
+      execFile('ffmpeg', [
+        '-y', '-i', inputPath,
+        '-ss', String(clip.startTime), '-t', dur,
+        '-c', 'copy', '-avoid_negative_ts', 'make_zero',
+        outputPath
+      ], (err) => {
+        if (!err) return resolve();
+        execFile('ffmpeg', [
+          '-y', '-i', inputPath,
+          '-ss', String(clip.startTime), '-t', dur,
+          '-c:v', 'libx264', '-c:a', 'aac',
+          outputPath
+        ], (err2) => err2 ? reject(err2) : resolve());
+      });
+    });
+
+    res.download(outputPath, `${safeName}.mp4`, () => {
+      try { fs.unlinkSync(outputPath); } catch {}
+    });
+  } catch (err) {
+    console.error('Local clip export error:', err);
+    res.status(500).json({ error: '导出失败: ' + err.message });
+  }
 });
 
 // ── Folder thumbnail ──
