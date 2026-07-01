@@ -1,6 +1,7 @@
-# Tricks Collection
+# Tricks 
 
 **Video Library Browser** — 基于 Web 的本地视频浏览器，文件夹树导航、缩略图生成、片段标记剪辑、快捷键驱动。
+名字还没定，征集中！
 
 ## 提示
 ⚠️
@@ -87,6 +88,13 @@ D:\Videos
 
 ![alt text](assets/image-1.png)
 
+<img width="2345" height="1413" alt="image" src="https://github.com/user-attachments/assets/f7e665d9-8efe-4619-be7b-ecd33f173cb1" />
 
+## 推荐
+推荐ios手机使用alook浏览器，在播放某些视频的时候兼容性更好。
 
 ## todo
+- 字幕功能
+- 多音轨
+- 视频直接转换 （ffmpeg / handbrake）
+- 更好的手机支持
