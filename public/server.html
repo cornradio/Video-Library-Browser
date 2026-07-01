@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" href="/favicon.png">
 <title>服务器浏览 - Tricks</title>
 <style>
@@ -179,16 +179,32 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px 4px 0;line-height:1}
 .sidebar-overlay{display:none}
 
+/* ── Mobile More Menu ── */
+.mobile-more-btn{display:none;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1}
+.mobile-more-menu{display:none;position:fixed;top:52px;right:8px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mobile-more-menu.show{display:block}
+.mobile-more-menu a,.mobile-more-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 16px;border:none;background:none;color:var(--text);font-size:13px;font-family:inherit;text-decoration:none;cursor:pointer;text-align:left;transition:background .1s}
+.mobile-more-menu a:hover,.mobile-more-menu button:hover{background:var(--hover)}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
+  .mobile-more-btn{display:block}
+  .header .btn-ghost,.header .github-btn,.header .history-btn,.header .help-btn{display:none}
+  .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
   .sidebar.open{left:0}
   .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
   .main{padding:16px 12px 0}
   .grid{grid-template-columns:1fr}
-  .search-input{width:100px}
+  .search-input{width:80px;font-size:12px;padding:5px 8px}
+  .detail-topbar{flex-wrap:wrap}
+  .detail-topbar .btn-sm{padding:5px 8px;font-size:11px}
+  .history-panel{right:8px;width:calc(100vw - 16px);max-width:380px}
+  .help-panel{right:8px;width:calc(100vw - 16px);max-width:300px}
+  /* Prevent double-tap zoom */
+  *{touch-action:manipulation}
 }
 
 </style>
@@ -262,6 +278,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>F4</kbd><span>转换视频 (任意视频)</span></div>
       </div>
     </div>
+  </div>
+  <button class="mobile-more-btn" id="mobileMoreBtn">&#8942;</button>
+  <div class="mobile-more-menu" id="mobileMoreMenu">
+    <a href="/local.html">本地模式</a>
+    <a href="/">收藏库</a>
+    <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a>
+    <button id="mobileHistoryBtn">播放历史</button>
+    <button id="mobileHelpBtn">资源导航</button>
   </div>
 </div>
 
@@ -1051,6 +1075,7 @@ function openDetail(file, noPush) {
   S.playingClipId = null;
   stopPreview();
   S.navIdx = S.navFiles.findIndex(f => f.path === file.path);
+  document.title = file.name + ' - Tricks';
 
   // Update URL so each video has a shareable link
   const url = new URL(location.href);
@@ -1210,6 +1235,7 @@ function showList() {
   stopPreview();
   S.playingClipId = null;
   S.curFile = null;
+  document.title = '服务器浏览 - Tricks';
   $('#listView').style.display = '';
   $('#detailView').style.display = 'none';
   $('#mainArea').scrollTop = S.scrollPos;
@@ -2011,6 +2037,24 @@ $('#hamburgerBtn').onclick = () => {
   $('#sidebarOverlay').style.display = opening ? 'block' : 'none';
 };
 $('#sidebarOverlay').onclick = closeSidebar;
+
+// ── Mobile More Menu ──
+$('#mobileMoreBtn').onclick = (e) => {
+  e.stopPropagation();
+  $('#mobileMoreMenu').classList.toggle('show');
+};
+document.addEventListener('click', () => {
+  $('#mobileMoreMenu').classList.remove('show');
+});
+$('#mobileMoreMenu').onclick = (e) => e.stopPropagation();
+$('#mobileHistoryBtn').onclick = () => {
+  $('#mobileMoreMenu').classList.remove('show');
+  $('#historyBtn').click();
+};
+$('#mobileHelpBtn').onclick = () => {
+  $('#mobileMoreMenu').classList.remove('show');
+  $('#helpBtn').click();
+};
 
 // ── History ──
 const HISTORY_MAX = 30;
