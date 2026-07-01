@@ -21,6 +21,24 @@ const QUALITY_PRESETS = {
 const NULL_DEV = os.platform() === 'win32' ? 'NUL' : '/dev/null';
 const TRICKS_FILE = path.join(BASE, 'data', 'tricks.json');
 const CATS_FILE = path.join(BASE, 'data', 'categories.json');
+const WHITELIST_FILE = path.join(BASE, 'data', 'whitelist.txt');
+
+// ── Whitelist ──
+function readWhitelist() {
+  try {
+    const txt = fs.readFileSync(WHITELIST_FILE, 'utf-8');
+    return txt.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  } catch { return []; }
+}
+function pathIsAllowed(requestedPath) {
+  const wl = readWhitelist();
+  if (wl.length === 0) return true; // no whitelist = allow all
+  const norm = path.resolve(requestedPath);
+  return wl.some(allowed => {
+    const a = path.resolve(allowed);
+    return norm === a || norm.startsWith(a + path.sep);
+  });
+}
 
 const funnyNames = [
   '地板杀手','膝盖终结者','重力叛逆者','水泥冲浪王','空中飞人',
@@ -354,9 +372,15 @@ function writeLocalClips(d) { fs.writeFileSync(LOCAL_CLIPS_FILE, JSON.stringify(
 const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.m4v']);
 const SUBTITLE_EXTS = new Set(['.srt', '.ass', '.ssa', '.vtt']);
 
+// ── Whitelist API ──
+app.get('/api/local/whitelist', (_req, res) => {
+  res.json(readWhitelist());
+});
+
 app.get('/api/local/directory', (req, res) => {
   const dirPath = req.query.path;
   if (!dirPath) return res.status(400).json({ error: '请输入路径' });
+  if (!pathIsAllowed(dirPath)) return res.status(403).json({ error: '该路径不在白名单中' });
   try {
     if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
       return res.status(400).json({ error: '路径不存在' });
@@ -403,6 +427,7 @@ app.get('/api/local/directory', (req, res) => {
 app.get('/api/local/scan-folder', (req, res) => {
   const dirPath = req.query.path;
   if (!dirPath) return res.status(400).json({ error: '缺少路径' });
+  if (!pathIsAllowed(dirPath)) return res.status(403).json({ error: '该路径不在白名单中' });
   try {
     if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
       return res.status(400).json({ error: '路径不存在' });
@@ -471,6 +496,7 @@ function killStreams(filePath) {
 app.get('/api/local/stream', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).send('No path');
+  if (!pathIsAllowed(filePath)) return res.status(403).send('Forbidden');
   try {
     const stat = fs.statSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
@@ -536,6 +562,7 @@ app.get('/api/local/stream', (req, res) => {
 app.get('/api/local/subtitle', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: '缺少路径' });
+  if (!pathIsAllowed(filePath)) return res.status(403).json({ error: '该路径不在白名单中' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
   const ext = path.extname(filePath).toLowerCase();
   const ct = ext === '.vtt' ? 'text/vtt' : ext === '.ass' || ext === '.ssa' ? 'text/x-ssa' : 'text/plain';
@@ -547,6 +574,7 @@ app.get('/api/local/subtitle', (req, res) => {
 app.get('/api/local/thumbnail', async (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).send('No path');
+  if (!pathIsAllowed(filePath)) return res.status(403).send('Forbidden');
   const customTime = req.query.t; // optional custom timestamp in seconds
   try {
     // Include custom time in hash so different times produce different cache files
@@ -719,6 +747,7 @@ app.get('/api/local/reveal', (req, res) => {
 app.delete('/api/local/file', async (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: '缺少路径' });
+  if (!pathIsAllowed(filePath)) return res.status(403).json({ error: '该路径不在白名单中' });
   try {
     console.log('[delete] attempt:', filePath);
     if (!fs.existsSync(filePath)) {
@@ -776,6 +805,7 @@ app.patch('/api/local/file', (req, res) => {
 app.post('/api/local/folder', (req, res) => {
   const { parentPath, name } = req.body;
   if (!parentPath || !name) return res.status(400).json({ error: '参数不完整' });
+  if (!pathIsAllowed(parentPath)) return res.status(403).json({ error: '该路径不在白名单中' });
   const newDir = path.join(parentPath, name.trim());
   try {
     fs.mkdirSync(newDir, { recursive: true });
@@ -786,6 +816,7 @@ app.post('/api/local/folder', (req, res) => {
 app.delete('/api/local/folder', async (req, res) => {
   const folderPath = req.query.path;
   if (!folderPath) return res.status(400).json({ error: '缺少路径' });
+  if (!pathIsAllowed(folderPath)) return res.status(403).json({ error: '该路径不在白名单中' });
   try {
     fs.rmSync(folderPath, { recursive: true, force: true });
     res.json({ success: true });
@@ -1094,5 +1125,12 @@ app.get('/api/local/convert-download', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
+  const wl = readWhitelist();
   console.log(`Tricks Collection running at http://0.0.0.0:${PORT}`);
+  if (wl.length > 0) {
+    console.log(`[whitelist] active (${wl.length} directories):`);
+    wl.forEach(d => console.log('  -', d));
+  } else {
+    console.log('[whitelist] none configured, all paths allowed');
+  }
 });

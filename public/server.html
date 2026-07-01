@@ -198,7 +198,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
   .main{padding:16px 12px 0}
   .grid{grid-template-columns:1fr}
-  .search-input{width:80px;font-size:12px;padding:5px 8px}
+  .search-input{flex:1;width:auto;min-width:0;font-size:13px;padding:6px 10px}
   .detail-topbar{flex-wrap:wrap}
   .detail-topbar .btn-sm{padding:5px 8px;font-size:11px}
   .history-panel{right:8px;width:calc(100vw - 16px);max-width:380px}
@@ -297,6 +297,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
   <div class="main" id="mainArea">
     <div id="listView">
+      <div id="whitelistSelect" style="display:none;margin-bottom:16px">
+        <div style="font-size:14px;color:var(--text2);margin-bottom:10px">选择一个目录：</div>
+        <div id="whitelistDirs" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
       <div class="toolbar">
         <input type="text" id="pathInput" placeholder="输入服务器文件夹路径，例如 D:\Videos 或 \\192.168.1.1\Share\folder" style="flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;outline:none">
         <button class="btn btn-primary" id="openBtn">打开</button>
@@ -452,6 +456,7 @@ async function browse(dirPath) {
     S.selPath = S.tree.path;
     $('#refreshBtn').style.display = '';
     $('#releaseBtn').style.display = '';
+    $('#whitelistSelect').style.display = 'none';
     renderTree();
     showVideosForFolder(S.tree.path);
   } catch (err) { toast('打开失败: ' + err.message); }
@@ -489,6 +494,7 @@ $('#releaseBtn').onclick = () => {
   $('#thumbControls').style.display = 'none';
   $('#refreshBtn').style.display = 'none';
   $('#releaseBtn').style.display = 'none';
+  if (whitelistDirs.length > 0) $('#whitelistSelect').style.display = 'block';
   toast('已解除占用');
 };
 
@@ -529,8 +535,53 @@ function findVideoFolder(videoPath) {
   return search(S.tree);
 }
 
+// ── Whitelist ──
+let whitelistDirs = [];
+
+async function loadWhitelist() {
+  try {
+    const r = await fetch('/api/local/whitelist');
+    whitelistDirs = await r.json();
+  } catch { whitelistDirs = []; }
+
+  if (whitelistDirs.length > 0) {
+    const container = $('#whitelistDirs');
+    container.innerHTML = '';
+    whitelistDirs.forEach(dir => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost';
+      btn.style.cssText = 'padding:8px 14px;font-size:13px;text-align:left;word-break:break-all';
+      btn.textContent = dir.split(/[/\\]/).pop() || dir;
+      btn.title = dir;
+      btn.onclick = () => {
+        $('#pathInput').value = dir;
+        browse(dir);
+        $('#whitelistSelect').style.display = 'none';
+      };
+      container.appendChild(btn);
+    });
+    // Show whitelist select if no saved path or saved path not in whitelist
+    const savedInWhitelist = savedPath && whitelistDirs.some(d => savedPath === d || savedPath.startsWith(d + '/') || savedPath.startsWith(d + '\\'));
+    if (!savedInWhitelist) {
+      $('#whitelistSelect').style.display = 'block';
+    }
+  }
+}
+
 // Auto-open saved path on load, with optional video detail from URL
 (async () => {
+  await loadWhitelist();
+
+  // If whitelist exists, validate saved path
+  if (whitelistDirs.length > 0 && savedPath) {
+    const allowed = whitelistDirs.some(d => savedPath === d || savedPath.startsWith(d + '/') || savedPath.startsWith(d + '\\'));
+    if (!allowed) {
+      // Saved path not in whitelist, show whitelist selector instead
+      $('#whitelistSelect').style.display = 'block';
+      return;
+    }
+  }
+
   if (savedPath) {
     await browse(savedPath);
     const videoParam = new URLSearchParams(location.search).get('video');

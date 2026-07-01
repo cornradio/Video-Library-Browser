@@ -169,7 +169,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-.api-check{padding:16px 20px;margin-bottom:16px;background:rgba(239,83,80,.1);border:1px solid rgba(239,83,80,.3);border-radius:8px;color:var(--red);font-size:13px;display:none}
+.api-check{padding:16px 20px;margin-bottom:16px;background:rgba(239,83,80,.1);border:1px solid rgba(239,83,80,.3);border-radius:8px;color:var(--red);font-size:13px;display:none;line-height:1.8}
+.api-check code{background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px;font-size:12px}
+.api-check a{color:var(--accent)}
 
 /* ── Hamburger & Overlay ── */
 .hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px 4px 0;line-height:1}
@@ -194,7 +196,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
   .main{padding:16px 12px 0}
   .grid{grid-template-columns:1fr}
-  .search-input{width:80px;font-size:12px;padding:5px 8px}
+  .search-input{flex:1;width:auto;min-width:0;font-size:13px;padding:6px 10px}
   .detail-topbar{flex-wrap:wrap}
   .detail-topbar .btn-sm{padding:5px 8px;font-size:11px}
   .history-panel{right:8px;width:calc(100vw - 16px);max-width:380px}
@@ -293,7 +295,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
   <div class="main" id="mainArea">
     <div id="listView">
-      <div class="api-check" id="apiCheck">当前浏览器不支持 File System Access API，请使用 Chrome/Edge 或切换到<a href="/server.html">服务器模式</a>。</div>
+      <div class="api-check" id="apiCheck"></div>
       <div class="toolbar">
         <button class="btn btn-primary" id="browseBtn">选择文件夹</button>
         <span class="folder-name" id="folderName"></span>
@@ -416,7 +418,17 @@ const S = {
 
 // Disable if API not available
 if (!window.showDirectoryPicker) {
-  $('#apiCheck').style.display = 'block';
+  const el = $('#apiCheck');
+  el.style.display = 'block';
+  if (!window.isSecureContext) {
+    el.innerHTML = '<b>当前页面不是安全上下文（HTTPS / localhost），File System Access API 不可用。</b><br>'
+      + 'HTTP 下浏览器禁止此 API。你可以：<br>'
+      + '① 切换到<a href="/server.html">服务器模式</a>（无需 HTTPS）<br>'
+      + '② 用 localhost 访问：<code>http://localhost:6688/local</code><br>'
+      + '③ 从 <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a> 下载项目，本地 <code>node server.js</code> 运行后通过 localhost 访问';
+  } else {
+    el.innerHTML = '当前浏览器不支持 File System Access API，请使用 Chrome / Edge 或切换到<a href="/server.html">服务器模式</a>。';
+  }
   $('#browseBtn').disabled = true;
 }
 
