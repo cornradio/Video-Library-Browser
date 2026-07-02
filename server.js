@@ -22,6 +22,7 @@ const NULL_DEV = os.platform() === 'win32' ? 'NUL' : '/dev/null';
 const TRICKS_FILE = path.join(BASE, 'data', 'tricks.json');
 const CATS_FILE = path.join(BASE, 'data', 'categories.json');
 const WHITELIST_FILE = path.join(BASE, 'data', 'whitelist.txt');
+const THUMB_TIMES_FILE = path.join(BASE, 'data', 'thumb-times.json');
 
 // ── Whitelist ──
 function readWhitelist() {
@@ -732,6 +733,29 @@ app.delete('/api/local/folder-thumb', (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Thumb time per folder ──
+function readThumbTimes() {
+  try { return JSON.parse(fs.readFileSync(THUMB_TIMES_FILE, 'utf-8')); }
+  catch { return {}; }
+}
+function writeThumbTimes(d) { fs.writeFileSync(THUMB_TIMES_FILE, JSON.stringify(d, null, 2)); }
+
+app.get('/api/local/thumb-time', (req, res) => {
+  const folderPath = req.query.path;
+  if (!folderPath) return res.status(400).json({ error: '缺少路径' });
+  const times = readThumbTimes();
+  res.json({ time: times[folderPath] ?? 1 });
+});
+
+app.post('/api/local/thumb-time', (req, res) => {
+  const { path: folderPath, time } = req.body;
+  if (!folderPath || time == null) return res.status(400).json({ error: '参数不完整' });
+  const times = readThumbTimes();
+  times[folderPath] = Number(time);
+  writeThumbTimes(times);
+  res.json({ success: true });
+});
+
 // Server-side file operations
 app.get('/api/local/reveal', (req, res) => {
   const filePath = req.query.path;
@@ -872,6 +896,27 @@ app.patch('/api/local/move-files', async (req, res) => {
   }
   console.log('[move-files] result:', { moved: moved.length, errors: errors.length });
   res.json({ success: true, moved, errors });
+});
+
+// ── Move folder (drag & drop in tree) ──
+app.patch('/api/local/move-folder', async (req, res) => {
+  const { folderPath, destPath } = req.body;
+  if (!folderPath || !destPath) return res.status(400).json({ error: '参数不完整' });
+  try {
+    if (destPath === folderPath || destPath.startsWith(folderPath + path.sep)) {
+      return res.status(400).json({ error: '不能将文件夹移动到自身或其子目录中' });
+    }
+    if (!fs.existsSync(destPath) || !fs.statSync(destPath).isDirectory()) {
+      return res.status(400).json({ error: '目标文件夹不存在' });
+    }
+    const folderName = path.basename(folderPath);
+    const newPath = path.join(destPath, folderName);
+    if (fs.existsSync(newPath)) {
+      return res.status(400).json({ error: '目标位置已存在同名文件夹' });
+    }
+    fs.renameSync(folderPath, newPath);
+    res.json({ success: true, newPath });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── MKV to MP4 conversion (SSE streaming with progress) ──

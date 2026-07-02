@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tricks">
+<meta name="theme-color" content="#1a1a2e">
 <title>服务器浏览 - Tricks</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -126,6 +132,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .sidebar-add{background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;padding:1px 7px;cursor:pointer;font-size:13px;line-height:1;transition:all var(--speed)}
 .sidebar-add:hover{background:var(--card);color:var(--text);border-color:#444}
 .tree-row.drop-target{background:var(--accent-dim);outline:1px dashed var(--accent);outline-offset:-1px}
+.tree-row.dragging{opacity:.4}
 .card.dragging{opacity:.4}
 
 .detail-drag-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:grab;border-radius:4px;color:var(--text2);vertical-align:middle;margin-right:8px;transition:all .15s;flex-shrink:0}
@@ -151,6 +158,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 .history-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 .history-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.fullscreen-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.fullscreen-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .github-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none}
 .github-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .help-shortcuts{padding:4px 16px 8px}
@@ -235,6 +244,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
   <button class="history-btn" id="historyBtn" title="播放历史"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+  <button class="fullscreen-btn" id="fullscreenBtn" title="网页全屏"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
   <div class="history-panel" id="historyPanel">
     <div class="history-head">
       <span>播放历史</span>
@@ -407,6 +417,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 </div>
 
 <div class="ctx-menu" id="folderCtxMenu">
+  <div class="ctx-item" id="folderCtxNewSub">新建子文件夹</div>
   <div class="ctx-item" id="folderCtxRename">重命名</div>
   <div class="ctx-item danger" id="folderCtxDelete">删除文件夹</div>
 </div>
@@ -423,6 +434,7 @@ const S = {
   cardObserver: null,
   lastBrowsePath: null,
   currentFolderPath: null,
+  currentThumbTime: 1,
 
 };
 
@@ -692,6 +704,19 @@ function buildTreeNode(folder) {
     nm.textContent = folder.name;
   }
   nm.onclick = async () => {
+    // Stop video if playing before switching folder
+    if ($('#detailView').style.display !== 'none') {
+      const v = $('#video');
+      v.pause();
+      v.removeAttribute('src');
+      v.load();
+      $('#detailView').style.display = 'none';
+      $('#listView').style.display = '';
+      document.title = '服务器浏览 - Tricks';
+      const url = new URL(location.href);
+      url.searchParams.delete('video');
+      history.replaceState(null, '', url);
+    }
     S.selPath = id;
     showVideosForFolder(id);
     renderTree();
@@ -706,6 +731,20 @@ function buildTreeNode(folder) {
   row.append(tog, nm, cnt);
   row.oncontextmenu = e => { e.preventDefault(); showFolderCtxMenu(e.clientX, e.clientY, folder.path); };
   setupTreeDrop(row, folder.path);
+
+  // Folder drag (move folder to another folder)
+  const isRoot = folder.path === (S.tree && S.tree.path);
+  if (!isRoot) {
+    row.draggable = true;
+    row.addEventListener('dragstart', e => {
+      e.stopPropagation();
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/folder-path', folder.path);
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+  }
+
   node.appendChild(row);
 
   if (hasKids && isOpen) {
@@ -737,6 +776,27 @@ function showVideosForFolder(folderPath) {
   $('#folderHeaderPath').textContent = folderPath;
   S.currentFolderPath = folderPath;
   updateFolderThumb(folderPath);
+
+  // Load saved thumb time for this folder
+  fetch('/api/local/thumb-time?path=' + encodeURIComponent(folderPath))
+    .then(r => r.json())
+    .then(data => {
+      const t = data.time ?? 1;
+      S.currentThumbTime = t;
+      $('#thumbTimeSlider').value = t;
+      const min = Math.floor(t / 60);
+      const sec = t % 60;
+      $('#thumbTimeVal').textContent = min > 0 ? `${min}m${sec}s` : `${t}s`;
+      // Update already-rendered cards to use the correct thumb time
+      document.querySelectorAll('#grid .card img').forEach(img => {
+        const url = new URL(img.src, location.origin);
+        if (url.pathname === '/api/local/thumbnail') {
+          url.searchParams.set('t', t);
+          img.src = url.toString();
+        }
+      });
+    })
+    .catch(() => {});
 
   const grid = $('#grid');
   if (!videos.length) {
@@ -861,8 +921,8 @@ function populateCard(card, f) {
   const tags = parts.slice(0, -1).filter(t => t);
   const tagsHtml = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
 
-  // Stable thumbnail URL — browser-cacheable
-  const imgSrc = `/api/local/thumbnail?path=${encodeURIComponent(f.path)}`;
+  // Stable thumbnail URL — includes saved thumb time for correct cached image
+  const imgSrc = `/api/local/thumbnail?path=${encodeURIComponent(f.path)}&t=${S.currentThumbTime}`;
 
   card.innerHTML = `
     <div class="card-media">
@@ -984,15 +1044,36 @@ function filterGrid(query) {
 $('#searchInput').oninput = () => filterGrid($('#searchInput').value);
 
 // ── Thumbnail time slider & refresh ──
+let thumbTimeSaveTimer = null;
 $('#thumbTimeSlider').oninput = () => {
   const v = $('#thumbTimeSlider').value;
   const min = Math.floor(v / 60);
   const sec = v % 60;
   $('#thumbTimeVal').textContent = min > 0 ? `${min}m${sec}s` : `${v}s`;
+  // Debounce save to server
+  clearTimeout(thumbTimeSaveTimer);
+  thumbTimeSaveTimer = setTimeout(() => {
+    if (S.currentFolderPath) {
+      fetch('/api/local/thumb-time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: S.currentFolderPath, time: Number(v) })
+      }).catch(() => {});
+    }
+  }, 500);
 };
 
 $('#refreshCoversBtn').onclick = async () => {
-  const t = $('#thumbTimeSlider').value;
+  const t = Number($('#thumbTimeSlider').value);
+  S.currentThumbTime = t;
+  // Save to server
+  if (S.currentFolderPath) {
+    fetch('/api/local/thumb-time', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: S.currentFolderPath, time: t })
+    }).catch(() => {});
+  }
   const cards = document.querySelectorAll('#grid .card');
   const mainArea = $('#mainArea');
   const viewTop = mainArea.scrollTop;
@@ -1824,6 +1905,22 @@ function moveCurrentVideo() {
 }
 
 
+// ── Web Fullscreen button (header) ──
+const fsEnterIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+const fsExitIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+function toggleWebFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  } else {
+    document.documentElement.requestFullscreen().catch(() => toast('无法进入全屏'));
+  }
+}
+$('#fullscreenBtn').onclick = toggleWebFullscreen;
+document.addEventListener('fullscreenchange', () => {
+  $('#fullscreenBtn').innerHTML = document.fullscreenElement ? fsExitIcon : fsEnterIcon;
+  $('#fullscreenBtn').title = document.fullscreenElement ? '退出全屏' : '网页全屏';
+});
+
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   // Detail view navigation
@@ -1831,7 +1928,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevBtn').click(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextBtn').click(); }
     if (e.key === 'Escape') { if (document.fullscreenElement) document.exitFullscreen(); else $('#backBtn').click(); }
-    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); const v = $('#video'); if (document.fullscreenElement) document.exitFullscreen(); else v.requestFullscreen().catch(() => {}); }
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); toggleWebFullscreen(); }
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
@@ -1927,8 +2024,25 @@ function showFolderCtxMenu(x, y, folderPath) {
   ctxFolderPath = folderPath;
   const m = $('#folderCtxMenu'); m.classList.add('show');
   m.style.left = Math.min(x, window.innerWidth - 130) + 'px';
-  m.style.top = Math.min(y, window.innerHeight - 60) + 'px';
+  m.style.top = Math.min(y, window.innerHeight - 100) + 'px';
 }
+
+$('#folderCtxNewSub').onclick = async () => {
+  if (!ctxFolderPath) return;
+  const name = prompt('新文件夹名称');
+  if (!name || !name.trim()) return;
+  try {
+    const r = await fetch('/api/local/folder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentPath: ctxFolderPath, name: name.trim() })
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    S.expanded.add(ctxFolderPath);
+    await refreshCurrentFolder();
+    renderTree();
+    toast('文件夹已创建');
+  } catch (e) { toast('创建失败: ' + e.message); }
+};
 
 $('#folderCtxRename').onclick = async () => {
   if (!ctxFolderPath) return;
@@ -2031,6 +2145,98 @@ function setupTreeDrop(row, folderPath) {
   row.addEventListener('drop', async e => {
     e.preventDefault();
     row.classList.remove('drop-target');
+
+    // Check if this is a folder drop
+    const dragFolderPath = e.dataTransfer.getData('text/folder-path');
+    if (dragFolderPath) {
+      // Folder drop: move folder into target
+      if (dragFolderPath === folderPath) return; // can't drop on itself
+      // Prevent dropping into own subfolder
+      if (folderPath.startsWith(dragFolderPath + '/') || folderPath.startsWith(dragFolderPath + '\\')) {
+        return toast('不能将文件夹移动到其子目录中');
+      }
+      try {
+        const r = await fetch('/api/local/move-folder', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folderPath: dragFolderPath, destPath: folderPath })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        toast('文件夹已移动');
+
+        // Update in-memory tree without full re-browse (preserves expanded state)
+        const oldPath = dragFolderPath;
+        const newPath = data.newPath;
+
+        // Find and remove folder from old parent, keeping a reference
+        let movedFolder = null;
+        function removeFromParent(node) {
+          for (let i = 0; i < node.folders.length; i++) {
+            if (node.folders[i].path === oldPath) {
+              movedFolder = node.folders[i];
+              node.folders.splice(i, 1);
+              return;
+            }
+          }
+          for (const f of node.folders) removeFromParent(f);
+        }
+        removeFromParent(S.tree);
+
+        // Update folder path recursively
+        function updatePaths(node, oldP, newP) {
+          if (node.path === oldP) node.path = newP;
+          else if (node.path.startsWith(oldP + '/') || node.path.startsWith(oldP + '\\')) {
+            node.path = newP + node.path.slice(oldP.length);
+          }
+          if (node.videos) {
+            for (const v of node.videos) {
+              if (v.path.startsWith(oldP + '/') || v.path.startsWith(oldP + '\\')) {
+                v.path = newP + v.path.slice(oldP.length);
+              }
+            }
+          }
+          if (node.folders) for (const f of node.folders) updatePaths(f, oldP, newP);
+        }
+        if (movedFolder) updatePaths(movedFolder, oldPath, newPath);
+
+        // Add folder to destination parent
+        if (movedFolder) {
+          const destNode = findFolder(S.tree, folderPath);
+          if (destNode) {
+            destNode.folders.push(movedFolder);
+            destNode.folders.sort((a, b) => a.name.localeCompare(b.name));
+          }
+        }
+
+        // Update expanded paths: replace old path prefix with new path prefix
+        const newExpanded = new Set();
+        for (const p of S.expanded) {
+          if (p === oldPath) {
+            newExpanded.add(newPath);
+          } else if (p.startsWith(oldPath + '/') || p.startsWith(oldPath + '\\')) {
+            newExpanded.add(newPath + p.slice(oldPath.length));
+          } else {
+            newExpanded.add(p);
+          }
+        }
+        S.expanded = newExpanded;
+
+        // Update selPath if inside moved folder
+        if (S.selPath === oldPath) {
+          S.selPath = newPath;
+        } else if (S.selPath.startsWith(oldPath + '/') || S.selPath.startsWith(oldPath + '\\')) {
+          S.selPath = newPath + S.selPath.slice(oldPath.length);
+        }
+
+        // Expand destination and re-render
+        S.expanded.add(folderPath);
+        renderTree();
+        showVideosForFolder(S.selPath);
+      } catch (err) { toast('移动失败: ' + err.message); }
+      return;
+    }
+
+    // File drop (existing logic)
     console.log('[drop] fired, dragFilePaths:', dragFilePaths, 'dest:', folderPath);
     if (!dragFilePaths.length) dragFilePaths = window._detailDragPaths || [];
     if (!dragFilePaths.length) dragFilePaths = window._detailDragPaths || [];
