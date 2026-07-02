@@ -88,8 +88,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 /* ── Detail ── */
 .detail-topbar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
 .detail-topbar .spacer{flex:1}
-.detail-video{background:#000;border-radius:8px;overflow:hidden;margin-bottom:16px}
-.detail-video video{width:100%;max-width:1080px;max-height:80vh;object-fit:contain;display:block;margin:0 auto;transition:opacity .15s}
+.detail-video{background:#000;border-radius:8px;overflow:hidden;margin-bottom:0;height:50vh;min-height:200px;display:flex;align-items:center;justify-content:center}
+.video-resize-handle{height:8px;background:#000;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;margin-bottom:16px;user-select:none;touch-action:none}
+.video-resize-handle:hover{background:rgba(255,255,255,.06)}
+.video-resize-handle::after{content:'';width:32px;height:3px;background:rgba(255,255,255,.25);border-radius:2px}
+.detail-video video{width:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;transition:opacity .15s}
 .subtitle-panel{display:none;position:relative;margin:-8px auto 16px;max-width:1080px;background:var(--card);border:1px solid var(--border);border-radius:0 0 8px 8px;padding:10px 16px;min-height:48px}
 .subtitle-panel.show{display:block}
 .subtitle-text{font-size:15px;color:var(--text);line-height:1.6;display:inline-block;vertical-align:middle;min-height:24px}
@@ -345,7 +348,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
       </div>
       <div class="detail-player" id="detailPlayer">
-        <div class="detail-video"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
+        <div class="detail-video" id="detailVideoBox"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-height:100%;object-fit:contain"></video></div>
+        <div class="video-resize-handle" id="videoResizeHandle"></div>
         <div class="subtitle-panel" id="subtitlePanel">
           <div class="subtitle-select" id="subtitleSelect" style="display:none">
             <span>字幕</span>
@@ -1178,6 +1182,44 @@ async function openDetail(file) {
     v.play().catch(() => {});
     v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
   } catch (e) { toast('无法加载视频: ' + e.message); }
+
+  // Drag handle: resize video container vertically
+  const vbox = $('#detailVideoBox');
+  const handle = $('#videoResizeHandle');
+  if (vbox) {
+    vbox.style.height = '50vh';
+    if (handle && !handle._bound) {
+      handle._bound = true;
+      handle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var startY = e.clientY, startH = vbox.offsetHeight;
+        function onMove(ev) {
+          var newH = Math.max(200, startH + ev.clientY - startY);
+          vbox.style.height = newH + 'px';
+        }
+        function onUp() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+      handle.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        var startY = e.touches[0].clientY, startH = vbox.offsetHeight;
+        function onMove(ev) {
+          var newH = Math.max(200, startH + ev.touches[0].clientY - startY);
+          vbox.style.height = newH + 'px';
+        }
+        function onEnd() {
+          document.removeEventListener('touchmove', onMove);
+          document.removeEventListener('touchend', onEnd);
+        }
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+      }, { passive: false });
+    }
+  }
 
   v.ontimeupdate = () => {
     if (_subtitleCues.length) updateSubtitle(v.currentTime);
