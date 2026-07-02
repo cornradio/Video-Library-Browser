@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="超级转换器">
+<meta name="theme-color" content="#1a1a2e">
+<title>超级转换器</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#e8e8e8;--text2:#777;--text3:#444;--accent:#ff5722;--accent-dim:rgba(255,87,34,.12);--green:#66bb6a;--red:#ef5350;--radius:10px;--speed:180ms}
+html{scrollbar-color:#333 #0a0a0a}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;touch-action:manipulation;padding-bottom:40px}
+a{color:var(--text2);text-decoration:none;transition:color var(--speed)}
+a:hover{color:var(--text)}
+
+/* ── Header ── */
+.header{position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;z-index:50;gap:12px}
+.hamburger{background:none;border:none;color:var(--text);cursor:pointer;font-size:20px;padding:4px 8px;border-radius:6px;transition:background var(--speed);line-height:1}
+.hamburger:hover{background:rgba(255,255,255,.08)}
+.header h1{font-size:17px;font-weight:700;white-space:nowrap}
+.header h1 span{color:var(--accent)}
+.header-nav{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
+.header-nav a{font-size:12px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);color:var(--text2);transition:all var(--speed);white-space:nowrap}
+.header-nav a:hover,.header-nav a.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+
+/* ── Side Menu ── */
+.side-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;opacity:0;pointer-events:none;transition:opacity .25s}
+.side-overlay.open{opacity:1;pointer-events:auto}
+.side-menu{position:fixed;top:0;left:-280px;width:260px;height:100%;background:var(--card);border-right:1px solid var(--border);z-index:100;transition:left .25s;padding:20px 0;display:flex;flex-direction:column}
+.side-menu.open{left:0}
+.side-menu-head{padding:0 20px 16px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.side-menu-head h2{font-size:16px;font-weight:700}
+.side-menu-head h2 span{color:var(--accent)}
+.side-menu a{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:14px;color:var(--text2);transition:all var(--speed)}
+.side-menu a:hover,.side-menu a.active{color:var(--accent);background:var(--accent-dim)}
+.side-menu a .ico{font-size:16px;width:22px;text-align:center}
+
+/* ── Tabs ── */
+.tabs-wrap{margin-top:52px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:52px;z-index:40}
+.tabs{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 12px}
+.tabs::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;padding:13px 18px;font-size:13px;font-weight:500;color:var(--text2);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all var(--speed);font-family:inherit;white-space:nowrap}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── Tool Section ── */
+.tool-section{display:none;max-width:860px;margin:0 auto;padding:20px 16px}
+.tool-section.active{display:block}
+
+.tool-title{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.tool-title .ico{color:var(--accent);font-size:18px}
+
+.field-group{margin-bottom:14px}
+.field-label{font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500}
+.field-row{display:flex;gap:8px;align-items:stretch}
+.field-row .search-input{flex:1}
+.field-row .btn{flex-shrink:0}
+
+.search-input{padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color var(--speed);width:100%}
+.search-input:focus{border-color:var(--accent)}
+.search-input::placeholder{color:var(--text3)}
+
+select.search-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23777' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer}
+
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all var(--speed);font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#e64a19}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--card);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:12px}
+
+/* ── Search Results ── */
+.search-results{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:240px;overflow-y:auto;display:none}
+.search-results.show{display:block}
+.sr-item{padding:9px 12px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border);transition:background var(--speed);display:flex;align-items:center;gap:8px}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.sr-item .ico{font-size:14px;flex-shrink:0;color:var(--text3)}
+.sr-item .path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+
+/* ── Progress ── */
+.progress-area{margin-top:16px;display:none}
+.progress-area.show{display:block}
+.progress-bar-track{height:6px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:6px}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#ff5722,#ff9800);border-radius:4px;transition:width .3s ease;width:0%}
+.progress-stats{display:flex;justify-content:space-between;font-size:12px;color:var(--text2)}
+.progress-phase{color:#daa520}
+
+/* ── Log ── */
+.log-area{margin-top:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;max-height:360px;overflow-y:auto;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;line-height:1.7;display:none}
+.log-area.show{display:block}
+.log-area:empty::before{content:'等待任务开始...';color:var(--text3)}
+.log-line{color:var(--text2)}
+.log-line.info{color:var(--text)}
+.log-line.success{color:var(--green)}
+.log-line.error{color:var(--red)}
+.log-line.warn{color:#daa520}
+.log-line .time{color:var(--text3);margin-right:8px}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 24px;border-radius:10px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .header{padding:0 10px;gap:8px}
+  .header h1{font-size:15px}
+  .header-nav a{font-size:11px;padding:5px 8px}
+  .tool-section{padding:14px 10px}
+  .field-row{flex-direction:column}
+  .field-row .btn{width:100%}
+  .tab-btn{padding:12px 14px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Side Menu -->
+<div class="side-overlay" id="sideOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <div class="side-menu-head"><h2>Tricks <span>Collection</span></h2></div>
+  <a href="/"><span class="ico">&#11088;</span>收藏库</a>
+  <a href="/server.html"><span class="ico">&#128421;</span>服务器浏览</a>
+  <a href="/local.html"><span class="ico">&#128193;</span>本地浏览</a>
+  <a href="/converter.html" class="active"><span class="ico">&#128260;</span>超级转换器</a>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <button class="hamburger" onclick="toggleMenu()">&#9776;</button>
+  <h1>超级<span>转换器</span></h1>
+  <nav class="header-nav">
+    <a href="/">收藏库</a>
+    <a href="/server.html">服务器</a>
+    <a href="/local.html">本地</a>
+  </nav>
+</div>
+
+<!-- Tabs -->
+<div class="tabs-wrap">
+  <div class="tabs" id="tabsBar">
+    <button class="tab-btn active" data-tab="extract">提取字幕</button>
+    <button class="tab-btn" data-tab="merge">合并字幕</button>
+    <button class="tab-btn" data-tab="single">单集转换</button>
+    <button class="tab-btn" data-tab="folder">文件夹转换</button>
+    <button class="tab-btn" data-tab="batch">批量转码</button>
+  </div>
+</div>
+
+<!-- ====== Extract Subtitle ====== -->
+<div class="tool-section active" id="sec-extract">
+  <div class="tool-title"><span class="ico">&#128221;</span> 提取字幕</div>
+  <div class="field-group">
+    <div class="field-label">基础路径</div>
+    <input class="search-input" id="extract-base" placeholder="例如: /mnt/media/anime" data-ls="conv_extract_base">
+  </div>
+  <div class="field-group">
+    <div class="field-label">搜索视频文件</div>
+    <div class="field-row">
+      <input class="search-input" id="extract-search" placeholder="输入关键词搜索文件...">
+      <button class="btn btn-ghost btn-sm" onclick="doSearch('extract')">搜索</button>
+    </div>
+    <div class="search-results" id="extract-results"></div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">选中文件路径</div>
+    <input class="search-input" id="extract-path" placeholder="从搜索结果点选或手动输入路径" readonly>
+  </div>
+  <button class="btn btn-primary" onclick="startExtract()">开始提取</button>
+  <div class="progress-area" id="extract-progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="extract-bar"></div></div>
+    <div class="progress-stats"><span id="extract-pct">0%</span><span class="progress-phase" id="extract-phase"></span></div>
+  </div>
+  <div class="log-area" id="extract-log"></div>
+</div>
+
+<!-- ====== Merge Subtitle ====== -->
+<div class="tool-section" id="sec-merge">
+  <div class="tool-title"><span class="ico">&#128279;</span> 合并字幕</div>
+  <div class="field-group">
+    <div class="field-label">基础路径</div>
+    <input class="search-input" id="merge-base" placeholder="例如: /mnt/media/anime" data-ls="conv_merge_base">
+  </div>
+  <div class="field-group">
+    <div class="field-label">搜索视频文件</div>
+    <div class="field-row">
+      <input class="search-input" id="merge-vsearch" placeholder="搜索视频文件...">
+      <button class="btn btn-ghost btn-sm" onclick="doSearch('merge-v')">搜索</button>
+    </div>
+    <div class="search-results" id="merge-vresults"></div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">视频路径</div>
+    <input class="search-input" id="merge-video" placeholder="视频文件路径" readonly>
+  </div>
+  <div class="field-group">
+    <div class="field-label">搜索字幕文件</div>
+    <div class="field-row">
+      <input class="search-input" id="merge-ssearch" placeholder="搜索字幕文件 (.srt/.ass)...">
+      <button class="btn btn-ghost btn-sm" onclick="doSearch('merge-s')">搜索</button>
+    </div>
+    <div class="search-results" id="merge-sresults"></div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">字幕路径</div>
+    <input class="search-input" id="merge-sub" placeholder="字幕文件路径" readonly>
+  </div>
+  <button class="btn btn-primary" onclick="startMerge()">开始合并</button>
+  <div class="progress-area" id="merge-progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="merge-bar"></div></div>
+    <div class="progress-stats"><span id="merge-pct">0%</span><span class="progress-phase" id="merge-phase"></span></div>
+  </div>
+  <div class="log-area" id="merge-log"></div>
+</div>
+
+<!-- ====== Single Convert ====== -->
+<div class="tool-section" id="sec-single">
+  <div class="tool-title"><span class="ico">&#127916;</span> 单集转换</div>
+  <div class="field-group">
+    <div class="field-label">基础路径</div>
+    <input class="search-input" id="single-base" placeholder="例如: /mnt/media/anime" data-ls="conv_single_base">
+  </div>
+  <div class="field-group">
+    <div class="field-label">搜索视频文件</div>
+    <div class="field-row">
+      <input class="search-input" id="single-search" placeholder="输入关键词搜索文件...">
+      <button class="btn btn-ghost btn-sm" onclick="doSearch('single')">搜索</button>
+    </div>
+    <div class="search-results" id="single-results"></div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">选中文件路径</div>
+    <input class="search-input" id="single-path" placeholder="从搜索结果点选或手动输入路径" readonly>
+  </div>
+  <div class="field-group">
+    <div class="field-label">编码器</div>
+    <select class="search-input" id="single-encoder">
+      <option value="x265">x265 (CPU H.265)</option>
+      <option value="nvenc_h265">nvenc_h265 (GPU H.265)</option>
+      <option value="x264">x264 (CPU H.264)</option>
+      <option value="nvenc_h264">nvenc_h264 (GPU H.264)</option>
+    </select>
+  </div>
+  <button class="btn btn-primary" onclick="startSingle()">开始转换</button>
+  <div class="progress-area" id="single-progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="single-bar"></div></div>
+    <div class="progress-stats"><span id="single-pct">0%</span><span class="progress-phase" id="single-phase"></span></div>
+  </div>
+  <div class="log-area" id="single-log"></div>
+</div>
+
+<!-- ====== Folder Convert ====== -->
+<div class="tool-section" id="sec-folder">
+  <div class="tool-title"><span class="ico">&#128194;</span> 文件夹转换</div>
+  <div class="field-group">
+    <div class="field-label">基础路径</div>
+    <input class="search-input" id="folder-base" placeholder="例如: /mnt/media/anime" data-ls="conv_folder_base">
+  </div>
+  <div class="field-group">
+    <div class="field-label">搜索文件夹</div>
+    <div class="field-row">
+      <input class="search-input" id="folder-search" placeholder="输入关键词搜索文件夹...">
+      <button class="btn btn-ghost btn-sm" onclick="doSearch('folder')">搜索</button>
+    </div>
+    <div class="search-results" id="folder-results"></div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">选中文件夹路径</div>
+    <input class="search-input" id="folder-path" placeholder="从搜索结果点选或手动输入路径" readonly>
+  </div>
+  <div class="field-group">
+    <div class="field-label">编码器</div>
+    <select class="search-input" id="folder-encoder">
+      <option value="x265">x265 (CPU H.265)</option>
+      <option value="nvenc_h265">nvenc_h265 (GPU H.265)</option>
+      <option value="x264">x264 (CPU H.264)</option>
+      <option value="nvenc_h264">nvenc_h264 (GPU H.264)</option>
+    </select>
+  </div>
+  <button class="btn btn-primary" onclick="startFolder()">开始转换</button>
+  <div class="progress-area" id="folder-progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="folder-bar"></div></div>
+    <div class="progress-stats"><span id="folder-pct">0%</span><span class="progress-phase" id="folder-phase"></span></div>
+  </div>
+  <div class="log-area" id="folder-log"></div>
+</div>
+
+<!-- ====== Batch Transcode ====== -->
+<div class="tool-section" id="sec-batch">
+  <div class="tool-title"><span class="ico">&#9889;</span> 批量转码</div>
+  <div class="field-group">
+    <div class="field-label">基础路径</div>
+    <input class="search-input" id="batch-base" placeholder="例如: /mnt/media/anime" data-ls="conv_batch_base">
+  </div>
+  <div class="field-group">
+    <div class="field-label">搜索文件夹</div>
+    <div class="field-row">
+      <input class="search-input" id="batch-search" placeholder="输入关键词搜索文件夹...">
+      <button class="btn btn-ghost btn-sm" onclick="doSearch('batch')">搜索</button>
+    </div>
+    <div class="search-results" id="batch-results"></div>
+  </div>
+  <div class="field-group">
+    <div class="field-label">选中文件夹路径</div>
+    <input class="search-input" id="batch-path" placeholder="从搜索结果点选或手动输入路径" readonly>
+  </div>
+  <div class="field-group" style="display:flex;gap:12px">
+    <div style="flex:1">
+      <div class="field-label">编码器</div>
+      <select class="search-input" id="batch-encoder">
+        <option value="x265">x265 (CPU H.265)</option>
+        <option value="nvenc_h265">nvenc_h265 (GPU H.265)</option>
+        <option value="x264">x264 (CPU H.264)</option>
+        <option value="nvenc_h264">nvenc_h264 (GPU H.264)</option>
+      </select>
+    </div>
+    <div style="flex:1">
+      <div class="field-label">批次限制</div>
+      <input class="search-input" id="batch-limit" type="number" value="10" min="1" max="999" placeholder="每批文件数">
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="startBatch()">开始批量转码</button>
+  <div class="progress-area" id="batch-progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="batch-bar"></div></div>
+    <div class="progress-stats"><span id="batch-pct">0%</span><span class="progress-phase" id="batch-phase"></span></div>
+  </div>
+  <div class="log-area" id="batch-log"></div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+/* ── Menu ── */
+function toggleMenu(){
+  document.getElementById('sideMenu').classList.toggle('open');
+  document.getElementById('sideOverlay').classList.toggle('open');
+}
+function closeMenu(){
+  document.getElementById('sideMenu').classList.remove('open');
+  document.getElementById('sideOverlay').classList.remove('open');
+}
+
+/* ── Tabs ── */
+document.getElementById('tabsBar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.tool-section').forEach(function(s){ s.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('sec-' + btn.dataset.tab).classList.add('active');
+});
+
+/* ── LocalStorage persistence for base paths ── */
+document.querySelectorAll('[data-ls]').forEach(function(el) {
+  var key = el.dataset.ls;
+  var saved = localStorage.getItem(key);
+  if (saved) el.value = saved;
+  el.addEventListener('change', function(){ localStorage.setItem(key, el.value); });
+  el.addEventListener('blur', function(){ localStorage.setItem(key, el.value); });
+});
+
+/* ── Search ── */
+var searchTimers = {};
+
+function doSearch(prefix) {
+  var inputEl, resultsEl, searchType, baseEl;
+  switch(prefix) {
+    case 'extract':
+      inputEl = document.getElementById('extract-search');
+      resultsEl = document.getElementById('extract-results');
+      searchType = 'file'; baseEl = document.getElementById('extract-base'); break;
+    case 'merge-v':
+      inputEl = document.getElementById('merge-vsearch');
+      resultsEl = document.getElementById('merge-vresults');
+      searchType = 'file'; baseEl = document.getElementById('merge-base'); break;
+    case 'merge-s':
+      inputEl = document.getElementById('merge-ssearch');
+      resultsEl = document.getElementById('merge-sresults');
+      searchType = 'file'; baseEl = document.getElementById('merge-base'); break;
+    case 'single':
+      inputEl = document.getElementById('single-search');
+      resultsEl = document.getElementById('single-results');
+      searchType = 'file'; baseEl = document.getElementById('single-base'); break;
+    case 'folder':
+      inputEl = document.getElementById('folder-search');
+      resultsEl = document.getElementById('folder-results');
+      searchType = 'folder'; baseEl = document.getElementById('folder-base'); break;
+    case 'batch':
+      inputEl = document.getElementById('batch-search');
+      resultsEl = document.getElementById('batch-results');
+      searchType = 'folder'; baseEl = document.getElementById('batch-base'); break;
+  }
+  var q = inputEl.value.trim();
+  if (!q) { resultsEl.classList.remove('show'); return; }
+  var basePath = baseEl.value.trim();
+  if (searchTimers[prefix]) clearTimeout(searchTimers[prefix]);
+  searchTimers[prefix] = setTimeout(function() {
+    var params = new URLSearchParams({ q: q, type: searchType });
+    if (basePath) params.set('basePath', basePath);
+    fetch('/api/convert/search?' + params.toString())
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        var items = Array.isArray(data) ? data : (data.results || data.files || []);
+        if (!items.length) {
+          resultsEl.innerHTML = '<div class="sr-item" style="color:var(--text3);cursor:default">无结果</div>';
+          resultsEl.classList.add('show');
+          return;
+        }
+        resultsEl.innerHTML = items.map(function(item) {
+          var p = typeof item === 'string' ? item : (item.path || item.name || '');
+          var isFolder = searchType === 'folder' || (typeof item === 'object' && item.isDir);
+          var icon = isFolder ? '\u{1F4C1}' : '\u{1F3AC}';
+          return '<div class="sr-item" data-path="' + escAttr(p) + '"><span class="ico">' + icon + '</span><span class="path">' + escHtml(p) + '</span></div>';
+        }).join('');
+        resultsEl.classList.add('show');
+        resultsEl.querySelectorAll('.sr-item[data-path]').forEach(function(el) {
+          el.addEventListener('click', function() {
+            var target = getSearchTarget(prefix);
+            if (target) target.value = el.dataset.path;
+            resultsEl.classList.remove('show');
+            toast('已选择: ' + el.dataset.path.split('/').pop());
+          });
+        });
+      })
+      .catch(function(err) {
+        resultsEl.innerHTML = '<div class="sr-item" style="color:var(--red);cursor:default">搜索出错: ' + escHtml(err.message) + '</div>';
+        resultsEl.classList.add('show');
+      });
+  }, 300);
+}
+
+function getSearchTarget(prefix) {
+  switch(prefix) {
+    case 'extract': return document.getElementById('extract-path');
+    case 'merge-v': return document.getElementById('merge-video');
+    case 'merge-s': return document.getElementById('merge-sub');
+    case 'single': return document.getElementById('single-path');
+    case 'folder': return document.getElementById('folder-path');
+    case 'batch': return document.getElementById('batch-path');
+  }
+}
+
+/* ── Enter key triggers search ── */
+document.querySelectorAll('.search-input').forEach(function(el) {
+  el.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      var btn = el.parentElement.querySelector('.btn-ghost');
+      if (btn) btn.click();
+    }
+  });
+});
+
+/* ── Helpers ── */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addLog(logId, msg, cls) {
+  var log = document.getElementById(logId);
+  log.classList.add('show');
+  var line = document.createElement('div');
+  line.className = 'log-line' + (cls ? ' ' + cls : '');
+  var now = new Date();
+  var ts = String(now.getHours()).padStart(2,'0') + ':' +
+           String(now.getMinutes()).padStart(2,'0') + ':' +
+           String(now.getSeconds()).padStart(2,'0');
+  line.innerHTML = '<span class="time">[' + ts + ']</span>' + escHtml(msg);
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setProgress(prefix, pct, phase) {
+  var area = document.getElementById(prefix + '-progress');
+  area.classList.add('show');
+  var bar = document.getElementById(prefix + '-bar');
+  var pctEl = document.getElementById(prefix + '-pct');
+  var phaseEl = document.getElementById(prefix + '-phase');
+  if (typeof pct === 'number') {
+    bar.style.width = Math.min(100, Math.max(0, pct)).toFixed(1) + '%';
+    pctEl.textContent = pct.toFixed(1) + '%';
+  }
+  if (phase !== undefined) phaseEl.textContent = phase || '';
+}
+
+function connectSSE(url, prefix) {
+  var logId = prefix + '-log';
+  addLog(logId, '连接中: ' + url, 'info');
+
+  var es = new EventSource(url);
+
+  es.onopen = function() {
+    addLog(logId, 'SSE 连接已建立', 'success');
+  };
+
+  es.addEventListener('message', function(e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch(_) { data = { message: e.data }; }
+
+    // Progress
+    if (data.progress !== undefined || data.percent !== undefined || data.percentage !== undefined) {
+      var pct = data.progress || data.percent || data.percentage || 0;
+      setProgress(prefix, pct, data.phase || data.status || '');
+    }
+
+    // Time info
+    if (data.time || data.elapsed || data.eta) {
+      var parts = [];
+      if (data.elapsed) parts.push('已用: ' + data.elapsed);
+      if (data.eta) parts.push('剩余: ' + data.eta);
+      if (data.time) parts.push(data.time);
+      setProgress(prefix, undefined, parts.join(' | '));
+    }
+
+    // File status
+    if (data.file) {
+      var status = data.status || data.event || 'processing';
+      var cls = status === 'done' || status === 'complete' ? 'success' :
+                status === 'error' || status === 'failed' ? 'error' :
+                status === 'start' || status === 'started' ? 'warn' : 'info';
+      addLog(logId, '[' + status.toUpperCase() + '] ' + data.file + (data.message ? ' - ' + data.message : ''), cls);
+    } else if (data.message) {
+      var mcls = data.level === 'error' ? 'error' :
+                 data.level === 'warn' ? 'warn' :
+                 data.level === 'success' ? 'success' : 'info';
+      addLog(logId, data.message, mcls);
+    }
+
+    // Summary / totals
+    if (data.total !== undefined && data.current !== undefined) {
+      var totalPct = (data.current / data.total * 100);
+      setProgress(prefix, totalPct, data.current + '/' + data.total + ' 文件');
+    }
+  });
+
+  es.addEventListener('done', function(e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch(_) { data = { message: e.data }; }
+    setProgress(prefix, 100, '完成');
+    addLog(logId, '任务完成!' + (data.message ? ' ' + data.message : ''), 'success');
+    es.close();
+  });
+
+  es.addEventListener('error_event', function(e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch(_) { data = { message: e.data }; }
+    addLog(logId, '错误: ' + (data.message || data.error || '未知错误'), 'error');
+  });
+
+  es.onerror = function() {
+    if (es.readyState === EventSource.CLOSED) {
+      addLog(logId, '连接已关闭', 'warn');
+    } else {
+      addLog(logId, '连接中断，尝试重连...', 'warn');
+    }
+  };
+
+  return es;
+}
+
+/* ── Actions ── */
+function startExtract() {
+  var path = document.getElementById('extract-path').value.trim();
+  if (!path) { toast('请先选择文件'); return; }
+  document.getElementById('extract-log').innerHTML = '';
+  setProgress('extract', 0, '初始化...');
+  var url = '/api/convert/extract-sub?path=' + encodeURIComponent(path);
+  connectSSE(url, 'extract');
+}
+
+function startMerge() {
+  var video = document.getElementById('merge-video').value.trim();
+  var sub = document.getElementById('merge-sub').value.trim();
+  if (!video) { toast('请先选择视频文件'); return; }
+  if (!sub) { toast('请先选择字幕文件'); return; }
+  document.getElementById('merge-log').innerHTML = '';
+  setProgress('merge', 0, '初始化...');
+  var url = '/api/convert/merge-sub?video=' + encodeURIComponent(video) + '&sub=' + encodeURIComponent(sub);
+  connectSSE(url, 'merge');
+}
+
+function startSingle() {
+  var path = document.getElementById('single-path').value.trim();
+  var encoder = document.getElementById('single-encoder').value;
+  if (!path) { toast('请先选择文件'); return; }
+  document.getElementById('single-log').innerHTML = '';
+  setProgress('single', 0, '初始化...');
+  var url = '/api/convert/single?path=' + encodeURIComponent(path) + '&encoder=' + encodeURIComponent(encoder);
+  connectSSE(url, 'single');
+}
+
+function startFolder() {
+  var path = document.getElementById('folder-path').value.trim();
+  var encoder = document.getElementById('folder-encoder').value;
+  if (!path) { toast('请先选择文件夹'); return; }
+  document.getElementById('folder-log').innerHTML = '';
+  setProgress('folder', 0, '初始化...');
+  var url = '/api/convert/folder?path=' + encodeURIComponent(path) + '&encoder=' + encodeURIComponent(encoder);
+  connectSSE(url, 'folder');
+}
+
+function startBatch() {
+  var path = document.getElementById('batch-path').value.trim();
+  var encoder = document.getElementById('batch-encoder').value;
+  var limit = document.getElementById('batch-limit').value || '10';
+  if (!path) { toast('请先选择文件夹'); return; }
+  document.getElementById('batch-log').innerHTML = '';
+  setProgress('batch', 0, '初始化...');
+  var url = '/api/convert/batch?path=' + encodeURIComponent(path) + '&encoder=' + encodeURIComponent(encoder) + '&limit=' + encodeURIComponent(limit);
+  connectSSE(url, 'batch');
+}
+
+/* ── Close search results when clicking outside ── */
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.field-group')) {
+    document.querySelectorAll('.search-results').forEach(function(el) {
+      el.classList.remove('show');
+    });
+  }
+});
+</script>
+</body>
+</html>

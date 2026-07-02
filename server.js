@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { exec, execFile } = require('child_process');
+const { exec, execFile, spawn } = require('child_process');
 const { randomUUID } = require('crypto');
 const os = require('os');
 
@@ -1167,6 +1167,350 @@ app.get('/api/local/convert-download', (req, res) => {
     // Clean up after download
     setTimeout(() => { try { fs.unlinkSync(filePath); } catch {} }, 5000);
   });
+});
+
+// ═══════════════════════════════════════════════════════
+// ── Super Converter API ──
+// ═══════════════════════════════════════════════════════
+
+const HANDBRAKE = 'HandBrakeCLI';
+const CONVERT_HISTORY = path.join(BASE, 'data', 'convert-history.log');
+
+// SSE helper for converter endpoints
+function sseSetup(res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  res.flushHeaders();
+  return (data) => res.write('data: ' + JSON.stringify(data) + '\n\n');
+}
+
+// Search files/folders by keyword within a base path
+app.get('/api/convert/search', (req, res) => {
+  const q = (req.query.q || '').trim().toLowerCase();
+  const type = req.query.type || 'file'; // file | folder
+  const basePath = req.query.basePath || '';
+  if (!q) return res.json([]);
+  if (!basePath || !fs.existsSync(basePath)) return res.json([]);
+  if (!pathIsAllowed(basePath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  const results = [];
+  const MAX = 50;
+  function walk(dir) {
+    if (results.length >= MAX) return;
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const e of entries) {
+        if (results.length >= MAX) return;
+        const full = path.join(dir, e.name);
+        if (type === 'folder' && e.isDirectory() && e.name.toLowerCase().includes(q)) {
+          results.push({ name: e.name, path: full });
+        }
+        if (type === 'file' && e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase()) && e.name.toLowerCase().includes(q)) {
+          let size = 0;
+          try { size = fs.statSync(full).size; } catch {}
+          results.push({ name: e.name, path: full, size });
+        }
+        if (e.isDirectory()) walk(full);
+      }
+    } catch {}
+  }
+  walk(basePath);
+  res.json(results);
+});
+
+// 1. Extract subtitle from video (ffmpeg)
+app.get('/api/convert/extract-sub', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath || !fs.existsSync(filePath)) return res.status(400).json({ error: '文件不存在' });
+  if (!pathIsAllowed(filePath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  const send = sseSetup(res);
+  const baseName = path.basename(filePath, path.extname(filePath));
+  const dir = path.dirname(filePath);
+  const outSrt = path.join(dir, baseName + '.zh.srt');
+
+  send({ type: 'start', file: path.basename(filePath), output: path.basename(outSrt) });
+
+  const proc = spawn('ffmpeg', ['-y', '-i', filePath, '-map', 's:0?', outSrt]);
+  proc.stderr.on('data', d => {
+    const line = d.toString();
+    if (line.includes('time=')) {
+      const m = line.match(/time=(\S+)/);
+      if (m) send({ type: 'progress', time: m[1] });
+    }
+  });
+  proc.on('close', code => {
+    if (code === 0 && fs.existsSync(outSrt) && fs.statSync(outSrt).size > 0) {
+      send({ type: 'done', output: outSrt });
+    } else {
+      try { fs.unlinkSync(outSrt); } catch {}
+      send({ type: 'error', msg: '提取失败：视频中没有内嵌软字幕轨' });
+    }
+    res.end();
+  });
+  proc.on('error', err => { send({ type: 'error', msg: err.message }); res.end(); });
+});
+
+// 2. Merge subtitle into MP4 (ffmpeg copy)
+app.get('/api/convert/merge-sub', (req, res) => {
+  const videoPath = req.query.video;
+  const subPath = req.query.sub;
+  if (!videoPath || !subPath || !fs.existsSync(videoPath) || !fs.existsSync(subPath)) {
+    return res.status(400).json({ error: '视频或字幕文件不存在' });
+  }
+  if (!pathIsAllowed(videoPath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  const send = sseSetup(res);
+  const ext = path.extname(videoPath);
+  const baseName = path.basename(videoPath, ext);
+  const dir = path.dirname(videoPath);
+  const tmpOut = path.join(dir, baseName + '.subbed.mp4');
+
+  send({ type: 'start', file: path.basename(videoPath), sub: path.basename(subPath) });
+
+  const args = ['-y', '-i', videoPath, '-i', subPath, '-c', 'copy', '-c:s', 'mov_text',
+    '-metadata:s:s:0', 'language=chi', '-metadata:s:s:0', 'title=Chs', tmpOut];
+  const proc = spawn('ffmpeg', args);
+  proc.stderr.on('data', d => {
+    const line = d.toString();
+    if (line.includes('time=')) {
+      const m = line.match(/time=(\S+)/);
+      if (m) send({ type: 'progress', time: m[1] });
+    }
+  });
+  proc.on('close', code => {
+    if (code === 0 && fs.existsSync(tmpOut) && fs.statSync(tmpOut).size > 0) {
+      // Atomic replace
+      try { fs.unlinkSync(videoPath); fs.renameSync(tmpOut, videoPath); } catch {}
+      send({ type: 'done', output: videoPath });
+    } else {
+      try { fs.unlinkSync(tmpOut); } catch {}
+      send({ type: 'error', msg: '合并失败' });
+    }
+    res.end();
+  });
+  proc.on('error', err => { send({ type: 'error', msg: err.message }); res.end(); });
+});
+
+// 3. Single file convert (HandBrakeCLI - fix audio)
+app.get('/api/convert/single', (req, res) => {
+  const filePath = req.query.path;
+  const encoder = req.query.encoder || 'x265';
+  if (!filePath || !fs.existsSync(filePath)) return res.status(400).json({ error: '文件不存在' });
+  if (!pathIsAllowed(filePath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  const send = sseSetup(res);
+  const ext = path.extname(filePath);
+  const isMp4 = ext.toLowerCase() === '.mp4';
+  const baseName = path.basename(filePath, ext);
+  const dir = path.dirname(filePath);
+  const outFile = isMp4 ? path.join(dir, baseName + '.fixed.mp4') : path.join(dir, baseName + '.mp4');
+
+  send({ type: 'start', file: path.basename(filePath), encoder });
+
+  // Get duration for progress
+  execFile('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1', filePath], (err, stdout) => {
+    const totalSec = err ? 0 : parseFloat(stdout.trim()) || 0;
+
+    const args = ['-i', filePath, '-o', outFile,
+      '-e', encoder, '-q', '26',
+      '--maxHeight', '1080', '--maxWidth', '1920',
+      '-r', '30', '--vfr',
+      '-a', '1', '-E', 'avc_aac', '-B', '160', '--mixdown', 'stereo'];
+    const proc = spawn(HANDBRAKE, args);
+    proc.stderr.on('data', d => {
+      const line = d.toString();
+      // HandBrakeCLI progress: "Encoding: task 1 of 1, 45.23 % (24.12 fps, avg 25.00 fps, ETA 00h12m30s)"
+      const m = line.match(/(\d+\.?\d*)\s*%/);
+      if (m) send({ type: 'progress', percent: parseFloat(m[1]) });
+    });
+    proc.stdout.on('data', d => {
+      const line = d.toString();
+      const m = line.match(/(\d+\.?\d*)\s*%/);
+      if (m) send({ type: 'progress', percent: parseFloat(m[1]) });
+    });
+    proc.on('close', code => {
+      if (code === 0 && fs.existsSync(outFile) && fs.statSync(outFile).size > 0) {
+        if (isMp4) {
+          try { fs.unlinkSync(filePath); fs.renameSync(outFile, filePath); } catch {}
+        }
+        send({ type: 'done', output: isMp4 ? filePath : outFile });
+      } else {
+        try { fs.unlinkSync(outFile); } catch {}
+        send({ type: 'error', msg: '转换失败' });
+      }
+      res.end();
+    });
+    proc.on('error', err => { send({ type: 'error', msg: err.message }); res.end(); });
+  });
+});
+
+// 4. Folder batch convert (HandBrakeCLI)
+app.get('/api/convert/folder', (req, res) => {
+  const folderPath = req.query.path;
+  const encoder = req.query.encoder || 'x265';
+  if (!folderPath || !fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+    return res.status(400).json({ error: '文件夹不存在' });
+  }
+  if (!pathIsAllowed(folderPath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  const send = sseSetup(res);
+  const videos = [];
+  function scan(dir) {
+    try {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
+          videos.push(path.join(dir, e.name));
+        } else if (e.isDirectory()) scan(path.join(dir, e.name));
+      }
+    } catch {}
+  }
+  scan(folderPath);
+
+  if (!videos.length) { send({ type: 'error', msg: '文件夹中没有视频文件' }); return res.end(); }
+  send({ type: 'start', total: videos.length });
+
+  let idx = 0;
+  function next() {
+    if (idx >= videos.length) { send({ type: 'done', total: videos.length }); return res.end(); }
+    const fp = videos[idx];
+    const ext = path.extname(fp);
+    const isMp4 = ext.toLowerCase() === '.mp4';
+    const baseName = path.basename(fp, ext);
+    const dir = path.dirname(fp);
+    const outFile = isMp4 ? path.join(dir, baseName + '.fixed.mp4') : path.join(dir, baseName + '.mp4');
+
+    send({ type: 'file', index: idx + 1, total: videos.length, name: path.basename(fp) });
+
+    const args = ['-i', fp, '-o', outFile,
+      '-e', encoder, '-q', '26',
+      '--maxHeight', '1080', '--maxWidth', '1920',
+      '-r', '30', '--vfr',
+      '-a', '1', '-E', 'avc_aac', '-B', '160', '--mixdown', 'stereo'];
+    const proc = spawn(HANDBRAKE, args);
+    proc.stderr.on('data', d => {
+      const m = d.toString().match(/(\d+\.?\d*)\s*%/);
+      if (m) send({ type: 'progress', fileIdx: idx + 1, total: videos.length, percent: parseFloat(m[1]) });
+    });
+    proc.stdout.on('data', d => {
+      const m = d.toString().match(/(\d+\.?\d*)\s*%/);
+      if (m) send({ type: 'progress', fileIdx: idx + 1, total: videos.length, percent: parseFloat(m[1]) });
+    });
+    proc.on('close', code => {
+      if (code === 0 && fs.existsSync(outFile) && fs.statSync(outFile).size > 0) {
+        if (isMp4) { try { fs.unlinkSync(fp); fs.renameSync(outFile, fp); } catch {} }
+        send({ type: 'file-done', index: idx + 1, total: videos.length, name: path.basename(fp) });
+      } else {
+        try { fs.unlinkSync(outFile); } catch {}
+        send({ type: 'file-error', index: idx + 1, name: path.basename(fp), msg: '转换失败' });
+      }
+      idx++;
+      next();
+    });
+    proc.on('error', err => {
+      send({ type: 'file-error', index: idx + 1, name: path.basename(fp), msg: err.message });
+      idx++;
+      next();
+    });
+  }
+  next();
+});
+
+// 5. Batch transcode all MKV → MP4 (HandBrakeCLI with history log)
+app.get('/api/convert/batch', (req, res) => {
+  const basePath = req.query.path;
+  const encoder = req.query.encoder || 'x265';
+  const limit = parseInt(req.query.limit) || 0; // 0 = all
+  if (!basePath || !fs.existsSync(basePath)) return res.status(400).json({ error: '路径不存在' });
+  if (!pathIsAllowed(basePath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  const send = sseSetup(res);
+
+  // Load history
+  let history = new Set();
+  try {
+    if (fs.existsSync(CONVERT_HISTORY)) {
+      fs.readFileSync(CONVERT_HISTORY, 'utf-8').split('\n').forEach(l => { if (l.trim()) history.add(l.trim()); });
+    }
+  } catch {}
+
+  const mkvs = [];
+  function scan(dir) {
+    try {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.isFile() && path.extname(e.name).toLowerCase() === '.mkv') {
+          mkvs.push(path.join(dir, e.name));
+        } else if (e.isDirectory()) scan(path.join(dir, e.name));
+      }
+    } catch {}
+  }
+  scan(basePath);
+
+  // Filter by history
+  const pending = mkvs.filter(f => {
+    const rel = path.relative(basePath, f).replace(/\\/g, '/');
+    return !history.has(rel);
+  });
+
+  if (!pending.length) { send({ type: 'done', total: 0, skipped: mkvs.length }); return res.end(); }
+
+  const toProcess = limit > 0 ? pending.slice(0, limit) : pending;
+  send({ type: 'start', total: toProcess.length, found: mkvs.length, skipped: mkvs.length - pending.length });
+
+  let idx = 0;
+  function next() {
+    if (idx >= toProcess.length) { send({ type: 'done', total: toProcess.length }); return res.end(); }
+    const fp = toProcess[idx];
+    const rel = path.relative(basePath, fp).replace(/\\/g, '/');
+    const outFile = fp.replace(/\.mkv$/i, '.mp4');
+
+    if (fs.existsSync(outFile) && fs.statSync(outFile).size > 0) {
+      // Already exists
+      try { fs.appendFileSync(CONVERT_HISTORY, rel + '\n'); } catch {}
+      send({ type: 'file-skip', index: idx + 1, name: path.basename(fp) });
+      idx++;
+      return next();
+    }
+
+    send({ type: 'file', index: idx + 1, total: toProcess.length, name: path.basename(fp) });
+
+    const args = ['-i', fp, '-o', outFile,
+      '-e', encoder, '--maxHeight', '1080', '--maxWidth', '1920',
+      '-r', '30', '--vfr',
+      '--audio-lang-list', 'cmn,chi,eng',
+      '--subtitle-lang-list', 'chi,zho'];
+    const proc = spawn(HANDBRAKE, args);
+    proc.stderr.on('data', d => {
+      const m = d.toString().match(/(\d+\.?\d*)\s*%/);
+      if (m) send({ type: 'progress', fileIdx: idx + 1, total: toProcess.length, percent: parseFloat(m[1]) });
+    });
+    proc.stdout.on('data', d => {
+      const m = d.toString().match(/(\d+\.?\d*)\s*%/);
+      if (m) send({ type: 'progress', fileIdx: idx + 1, total: toProcess.length, percent: parseFloat(m[1]) });
+    });
+    proc.on('close', code => {
+      if (code === 0 && fs.existsSync(outFile) && fs.statSync(outFile).size > 0) {
+        try { fs.appendFileSync(CONVERT_HISTORY, rel + '\n'); } catch {}
+        send({ type: 'file-done', index: idx + 1, total: toProcess.length, name: path.basename(fp) });
+      } else {
+        try { fs.unlinkSync(outFile); } catch {}
+        send({ type: 'file-error', index: idx + 1, name: path.basename(fp), msg: '转码失败' });
+      }
+      idx++;
+      next();
+    });
+    proc.on('error', err => {
+      send({ type: 'file-error', index: idx + 1, name: path.basename(fp), msg: err.message });
+      idx++;
+      next();
+    });
+  }
+  next();
 });
 
 app.listen(PORT, '0.0.0.0', () => {
