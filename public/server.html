@@ -163,8 +163,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .history-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .fullscreen-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 .fullscreen-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
-.github-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none}
-.github-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.github-btn,.converter-btn,.upload-icon-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none;cursor:pointer}
+.github-btn:hover,.converter-btn:hover,.upload-icon-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .help-shortcuts{padding:4px 16px 8px}
 .help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
 .help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
@@ -187,6 +187,23 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ── Upload Progress ── */
+.upload-progress{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 20px;z-index:200;min-width:280px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.upload-progress.show{display:block}
+.upload-progress-title{font-size:12px;color:var(--text2);margin-bottom:6px}
+.upload-progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.upload-progress-fill{height:100%;background:linear-gradient(90deg,#ff5722,#ff9800);border-radius:2px;transition:width .3s;width:0%}
+.upload-progress-text{font-size:11px;color:var(--text3);display:flex;justify-content:space-between}
+
+/* ── Cover Paste Overlay ── */
+.cover-paste-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column}
+.cover-paste-overlay.show{display:flex}
+.cover-paste-box{background:var(--card);border:2px dashed var(--accent);border-radius:12px;padding:40px 60px;text-align:center;max-width:400px}
+.cover-paste-box h3{font-size:15px;margin-bottom:8px;color:var(--text)}
+.cover-paste-box p{font-size:12px;color:var(--text2);margin-bottom:12px}
+.cover-paste-box .btn{margin-top:8px}
+.cover-paste-preview{max-width:200px;max-height:150px;border-radius:6px;margin-top:12px;display:none}
+
 /* ── Hamburger & Overlay ── */
 .hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px 4px 0;line-height:1}
 .sidebar-overlay{display:none}
@@ -202,7 +219,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 @media(max-width:768px){
   .hamburger{display:block}
   .mobile-more-btn{display:block}
-  .header .btn-ghost,.header .github-btn,.header .history-btn,.header .help-btn{display:none}
+  .header .btn-ghost,.header .github-btn,.header .converter-btn,.header .upload-icon-btn,.header .history-btn,.header .help-btn{display:none}
   .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
@@ -245,7 +262,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
   <a href="/local.html" class="btn btn-ghost btn-sm" style="text-decoration:none">本地模式</a>
   <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
-  <a href="/converter.html" class="btn btn-ghost btn-sm" style="text-decoration:none">超级转换器</a>
+  <a href="/converter.html" class="converter-btn" title="超级转换器"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></a>
+  <button class="upload-icon-btn" id="uploadBtn" title="上传视频"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+  <input type="file" id="uploadInput" multiple accept="video/*" style="display:none">
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
   <button class="history-btn" id="historyBtn" title="播放历史"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
   <button class="fullscreen-btn" id="fullscreenBtn" title="网页全屏"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
@@ -299,6 +318,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <a href="/">收藏库</a>
     <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a>
     <a href="/converter.html">超级转换器</a>
+    <button id="mobileUploadBtn">上传视频</button>
     <button id="mobileHistoryBtn">播放历史</button>
     <button id="mobileHelpBtn">资源导航</button>
   </div>
@@ -418,6 +438,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="ctx-menu" id="cardCtxMenu">
   <div class="ctx-item" id="cardCtxConvert">转换视频</div>
+  <div class="ctx-item" id="cardCtxCover">设置封面</div>
+  <div class="ctx-item danger" id="cardCtxClearCover">清除封面</div>
   <div class="ctx-item" id="cardCtxRename">重命名</div>
   <div class="ctx-item danger" id="cardCtxDelete">删除文件</div>
 </div>
@@ -429,6 +451,26 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="upload-progress" id="uploadProgress">
+  <div class="upload-progress-title">上传中...</div>
+  <div class="upload-progress-bar"><div class="upload-progress-fill" id="uploadFill"></div></div>
+  <div class="upload-progress-text"><span id="uploadPct">0%</span><span id="uploadInfo"></span></div>
+</div>
+
+<div class="cover-paste-overlay" id="coverPasteOverlay">
+  <div class="cover-paste-box">
+    <h3>设置视频封面</h3>
+    <p>请粘贴图片 (Ctrl+V) 或点击选择文件</p>
+    <input type="file" id="coverFileInput" accept="image/*" style="display:none">
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('coverFileInput').click()">选择图片</button>
+    <img class="cover-paste-preview" id="coverPreview">
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-primary btn-sm" id="coverConfirmBtn" style="display:none">确认设置</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeCoverPaste()">取消</button>
+    </div>
+  </div>
+</div>
 
 <script src="/shared.js"></script>
 <script>
@@ -666,6 +708,15 @@ function findFolder(node, p) {
   return null;
 }
 
+function findVideoInTree(node, videoPath) {
+  if (node.videos) {
+    const v = node.videos.find(v => v.path === videoPath);
+    if (v) return v;
+  }
+  for (const f of node.folders) { const r = findVideoInTree(f, videoPath); if (r) return r; }
+  return null;
+}
+
 // Walk the tree to find a folder by matching name segments in order
 function findFolderPath(parts) {
   let node = S.tree;
@@ -793,8 +844,11 @@ function showVideosForFolder(folderPath) {
       const min = Math.floor(t / 60);
       const sec = t % 60;
       $('#thumbTimeVal').textContent = min > 0 ? `${min}m${sec}s` : `${t}s`;
-      // Update already-rendered cards to use the correct thumb time
+      // Update already-rendered cards to use the correct thumb time (skip manual covers)
       document.querySelectorAll('#grid .card img').forEach(img => {
+        const card = img.closest('.card');
+        const videoNode = card ? findVideoInTree(S.tree, card.dataset.path) : null;
+        if (videoNode && videoNode.hasManualCover) return;
         const url = new URL(img.src, location.origin);
         if (url.pathname === '/api/local/thumbnail') {
           url.searchParams.set('t', t);
@@ -886,6 +940,7 @@ $('#folderThumbInput').onchange = (e) => {
 };
 document.addEventListener('paste', (e) => {
   if (!$('#folderHeader') || $('#folderHeader').style.display === 'none') return;
+  if ($('#coverPasteOverlay').classList.contains('show')) return;
   const items = e.clipboardData?.items;
   if (!items) return;
   for (const item of items) {
@@ -927,8 +982,10 @@ function populateCard(card, f) {
   const tags = parts.slice(0, -1).filter(t => t);
   const tagsHtml = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
 
-  // Stable thumbnail URL — includes saved thumb time for correct cached image
-  const imgSrc = `/api/local/thumbnail?path=${encodeURIComponent(f.path)}&t=${S.currentThumbTime}`;
+  // Stable thumbnail URL — manual covers use different URL pattern to avoid cache conflict
+  const imgSrc = f.hasManualCover
+    ? `/api/local/thumbnail?path=${encodeURIComponent(f.path)}&cover=manual&_=${Date.now()}`
+    : `/api/local/thumbnail?path=${encodeURIComponent(f.path)}&t=${S.currentThumbTime}`;
 
   card.innerHTML = `
     <div class="card-media">
@@ -1106,6 +1163,10 @@ $('#refreshCoversBtn').onclick = async () => {
     const url = new URL(img.src, location.origin);
     const filePath = url.searchParams.get('path');
     if (!filePath) continue;
+    // Skip cards with manual covers — they should not be overwritten by auto thumbnails
+    const card = img.closest('.card');
+    const videoNode = card ? findVideoInTree(S.tree, card.dataset.path) : null;
+    if (videoNode && videoNode.hasManualCover) { done++; continue; }
     const newSrc = `/api/local/thumbnail?path=${encodeURIComponent(filePath)}&t=${t}&_=${Date.now()}`;
     await new Promise((resolve) => {
       const preImg = new Image();
@@ -1243,11 +1304,12 @@ function openDetail(file, noPush) {
   v.play().catch(() => {});
   v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
 
-  // Drag handle: resize video container vertically
+  // Drag handle: resize video container vertically (persisted)
   const vbox = $('#detailVideoBox');
   const handle = $('#videoResizeHandle');
   if (vbox) {
-    vbox.style.height = '50vh';
+    var savedH = localStorage.getItem('detail_video_height');
+    vbox.style.height = savedH ? savedH + 'px' : '50vh';
     if (handle && !handle._bound) {
       handle._bound = true;
       handle.addEventListener('mousedown', function(e) {
@@ -1260,6 +1322,7 @@ function openDetail(file, noPush) {
         function onUp() {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          localStorage.setItem('detail_video_height', vbox.offsetHeight);
         }
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
@@ -1274,6 +1337,7 @@ function openDetail(file, noPush) {
         function onEnd() {
           document.removeEventListener('touchmove', onMove);
           document.removeEventListener('touchend', onEnd);
+          localStorage.setItem('detail_video_height', vbox.offsetHeight);
         }
         document.addEventListener('touchmove', onMove, { passive: false });
         document.addEventListener('touchend', onEnd);
@@ -1614,9 +1678,26 @@ $('#ctxDelete').onclick = async () => {
 let ctxCardFile = null;
 function showCardCtxMenu(x, y, file) {
   ctxCardFile = file;
-  const m = $('#cardCtxMenu'); m.classList.add('show');
+  const m = $('#cardCtxMenu');
+
+  // Default: show "设置封面", hide "清除封面" until async check completes
+  $('#cardCtxCover').style.display = '';
+  $('#cardCtxClearCover').style.display = 'none';
+
+  // Async check: does this video have a manual cover?
+  fetch('/api/local/has-cover?path=' + encodeURIComponent(file.path))
+    .then(r => r.json())
+    .then(data => {
+      if (ctxCardFile === file) { // still the same card
+        $('#cardCtxCover').style.display = data.hasCover ? 'none' : '';
+        $('#cardCtxClearCover').style.display = data.hasCover ? '' : 'none';
+      }
+    })
+    .catch(() => {});
+
+  m.classList.add('show');
   m.style.left = Math.min(x, window.innerWidth - 130) + 'px';
-  m.style.top = Math.min(y, window.innerHeight - 80) + 'px';
+  m.style.top = Math.min(y, window.innerHeight - 120) + 'px';
 }
 
 $('#cardCtxRename').onclick = async () => {
@@ -2182,7 +2263,8 @@ function setupCardDrag(card, file) {
 function setupTreeDrop(row, folderPath) {
   row.addEventListener('dragover', e => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    const hasFiles = e.dataTransfer.types.includes('Files');
+    e.dataTransfer.dropEffect = hasFiles ? 'copy' : 'move';
     row.classList.add('drop-target');
   });
   row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
@@ -2277,6 +2359,48 @@ function setupTreeDrop(row, folderPath) {
         renderTree();
         showVideosForFolder(S.selPath);
       } catch (err) { toast('移动失败: ' + err.message); }
+      return;
+    }
+
+    // External file drop: upload from OS to this folder
+    const extFiles = e.dataTransfer.files;
+    if (extFiles && extFiles.length > 0) {
+      const fd = new FormData();
+      fd.append('folderPath', folderPath);
+      for (let i = 0; i < extFiles.length; i++) fd.append('files', extFiles[i]);
+
+      const prog = $('#uploadProgress');
+      const fill = $('#uploadFill');
+      const pct = $('#uploadPct');
+      const info = $('#uploadInfo');
+      prog.classList.add('show');
+      fill.style.width = '0%';
+      pct.textContent = '0%';
+      info.textContent = extFiles.length + ' 个文件';
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/local/upload-video');
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) {
+          const p = (ev.loaded / ev.total * 100).toFixed(1);
+          fill.style.width = p + '%';
+          pct.textContent = p + '%';
+        }
+      };
+      xhr.onload = () => {
+        prog.classList.remove('show');
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          toast('已上传 ' + data.count + ' 个文件');
+          refreshCurrentFolder(true);
+          S.expanded.add(folderPath);
+          renderTree();
+        } else {
+          try { toast(JSON.parse(xhr.responseText).error || '上传失败'); } catch { toast('上传失败'); }
+        }
+      };
+      xhr.onerror = () => { prog.classList.remove('show'); toast('上传失败'); };
+      xhr.send(fd);
       return;
     }
 
@@ -2449,6 +2573,208 @@ $('#historyClearBtn').onclick = () => {
   if (!confirm('清空所有播放历史？')) return;
   localStorage.removeItem(HISTORY_KEY);
   renderHistory();
+};
+
+// ══════════════════════════════════════════════════════
+// ── Set Cover (paste image) ──
+// ══════════════════════════════════════════════════════
+
+let coverTargetFile = null;
+let coverImageData = null;
+
+$('#cardCtxCover').onclick = () => {
+  if (!ctxCardFile) return;
+  coverTargetFile = ctxCardFile;
+  coverImageData = null;
+  $('#coverPreview').style.display = 'none';
+  $('#coverConfirmBtn').style.display = 'none';
+  $('#coverPasteOverlay').classList.add('show');
+};
+
+function closeCoverPaste() {
+  coverTargetFile = null;
+  coverImageData = null;
+  $('#coverPasteOverlay').classList.remove('show');
+}
+
+function handleCoverImage(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    coverImageData = reader.result;
+    const preview = $('#coverPreview');
+    preview.src = coverImageData;
+    preview.style.display = 'block';
+    $('#coverConfirmBtn').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+document.addEventListener('paste', (e) => {
+  if (!$('#coverPasteOverlay').classList.contains('show')) return;
+  const items = e.clipboardData.items;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      handleCoverImage(item.getAsFile());
+      return;
+    }
+  }
+  toast('剪贴板中没有图片');
+});
+
+$('#coverFileInput').onchange = (e) => {
+  if (e.target.files[0]) handleCoverImage(e.target.files[0]);
+  e.target.value = '';
+};
+
+$('#coverConfirmBtn').onclick = async () => {
+  if (!coverTargetFile || !coverImageData) return;
+  try {
+    const r = await fetch('/api/local/set-cover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoPath: coverTargetFile.path, imageData: coverImageData })
+    });
+    const data = await r.json();
+    if (data.success) {
+      // Update video flag in tree so re-renders use cache-busted URL
+      const videoNode = findVideoInTree(S.tree, coverTargetFile.path);
+      if (videoNode) videoNode.hasManualCover = true;
+      // Refresh the card thumbnail
+      const card = document.querySelector(`.card[data-path="${CSS.escape(coverTargetFile.path)}"]`);
+      if (card) {
+        const img = card.querySelector('.card-media img');
+        if (img) img.src = '/api/local/thumbnail?path=' + encodeURIComponent(coverTargetFile.path) + '&cover=manual&_=' + Date.now();
+      }
+      toast('封面已设置');
+      closeCoverPaste();
+    } else {
+      toast('设置失败: ' + (data.error || ''));
+    }
+  } catch (e) { toast('设置失败: ' + e.message); }
+};
+
+$('#coverPasteOverlay').onclick = (e) => {
+  if (e.target === $('#coverPasteOverlay')) closeCoverPaste();
+};
+
+$('#cardCtxClearCover').onclick = async () => {
+  if (!ctxCardFile) return;
+  try {
+    const url = '/api/local/cover?path=' + encodeURIComponent(ctxCardFile.path);
+    console.log('[clear-cover] requesting:', url);
+    const r = await fetch(url, { method: 'DELETE' });
+    console.log('[clear-cover] response status:', r.status);
+    const data = await r.json();
+    console.log('[clear-cover] response data:', data);
+    if (data.success) {
+      // Update video flag in tree so re-renders use cached URL
+      const videoNode = findVideoInTree(S.tree, ctxCardFile.path);
+      if (videoNode) videoNode.hasManualCover = false;
+      // Refresh card thumbnail (will fall back to auto-generated)
+      const card = document.querySelector(`.card[data-path="${CSS.escape(ctxCardFile.path)}"]`);
+      if (card) {
+        const img = card.querySelector('.card-media img');
+        if (img) img.src = '/api/local/thumbnail?path=' + encodeURIComponent(ctxCardFile.path) + '&t=' + S.currentThumbTime + '&_=' + Date.now();
+      }
+      toast('封面已清除');
+    } else {
+      toast('清除失败: ' + (data.error || ''));
+    }
+  } catch (e) { toast('清除失败: ' + e.message); }
+};
+
+// ══════════════════════════════════════════════════════
+// ── Upload Videos ──
+// ══════════════════════════════════════════════════════
+
+$('#uploadBtn').onclick = () => $('#uploadInput').click();
+$('#mobileUploadBtn').onclick = () => {
+  $('#mobileMoreMenu').classList.remove('show');
+  $('#uploadInput').click();
+};
+
+$('#uploadInput').onchange = async (e) => {
+  const fileList = e.target.files;
+  if (!fileList || fileList.length === 0) return;
+  // Copy files before resetting input (e.target.files is a live reference)
+  const files = [];
+  for (let i = 0; i < fileList.length; i++) files.push(fileList[i]);
+  e.target.value = '';
+
+  // Upload with progress
+  const fd = new FormData();
+  for (let i = 0; i < files.length; i++) fd.append('files', files[i]);
+
+  const prog = $('#uploadProgress');
+  const fill = $('#uploadFill');
+  const pct = $('#uploadPct');
+  const info = $('#uploadInfo');
+  prog.classList.add('show');
+  fill.style.width = '0%';
+  pct.textContent = '0%';
+  info.textContent = files.length + ' 个文件';
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/local/upload-video');
+
+  xhr.upload.onprogress = (ev) => {
+    if (ev.lengthComputable) {
+      const p = (ev.loaded / ev.total * 100).toFixed(1);
+      fill.style.width = p + '%';
+      pct.textContent = p + '%';
+    }
+  };
+
+  xhr.onload = () => {
+    prog.classList.remove('show');
+    if (xhr.status === 200) {
+      const data = JSON.parse(xhr.responseText);
+      toast('已上传 ' + data.count + ' 个文件到 NewUpload');
+      // Refresh tree and navigate to NewUpload folder
+      if (S.tree) {
+        (async () => {
+          try {
+            S.tree = await (await fetch('/api/local/directory')).json();
+            buildTree();
+            const folder = data.folder;
+            function findFolder(node, target) {
+              if (node.path === target) return node;
+              if (node.children) {
+                for (const c of node.children) {
+                  const found = findFolder(c, target);
+                  if (found) return found;
+                }
+              }
+              return null;
+            }
+            const upNode = findFolder(S.tree, folder);
+            if (upNode) {
+              const parts = folder.split(/[\\/]/);
+              let cur = '';
+              for (const p of parts) {
+                cur = cur ? cur + '/' + p : p;
+                S.expanded.add(cur);
+              }
+              buildTree();
+              showVideosForFolder(folder);
+            }
+          } catch (e) { console.error(e); }
+        })();
+      }
+    } else {
+      let msg = '上传失败';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch {}
+      toast(msg);
+    }
+  };
+
+  xhr.onerror = () => {
+    prog.classList.remove('show');
+    toast('上传出错');
+  };
+
+  xhr.send(fd);
 };
 </script>
 </body>

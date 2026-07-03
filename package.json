@@ -3,11 +3,28 @@
   "version": "1.0.0",
   "description": "Web-based video library browser with folder tree navigation, thumbnails, clip marking and keyboard shortcuts",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "node build.js",
+    "pack": "node pack.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "systray": "^4.6.0"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*",
+      "node_modules/systray/traybin/tray_windows_release.exe"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.14.2"
   }
 }

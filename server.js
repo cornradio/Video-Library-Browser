@@ -7,8 +7,9 @@ const { randomUUID } = require('crypto');
 const os = require('os');
 
 const PORT = process.env.PORT || process.argv[2] || 3000;
-const BASE = __dirname;
+const BASE = process.pkg ? path.dirname(process.execPath) : __dirname;
 const UPLOADS = path.join(BASE, 'uploads');
+const PUBLIC_DIR = process.pkg ? path.join(__dirname, 'public') : path.join(BASE, 'public');
 
 // Video quality presets for transcoding
 const QUALITY_PRESETS = {
@@ -104,8 +105,8 @@ function multerErrHandler(err, req, res, next) {
 
 // ── App ──
 const app = express();
-app.use(express.json());
-app.use(express.static(path.join(BASE, 'public')));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(PUBLIC_DIR));
 app.use('/uploads', express.static(UPLOADS));
 
 // ════════════════════════════
@@ -397,7 +398,9 @@ app.get('/api/local/directory', (req, res) => {
           const fp = path.join(dir, e.name);
           let size = 0;
           try { size = fs.statSync(fp).size; } catch {}
-          videos.push({ name: e.name, path: fp, size });
+          const mHash = require('crypto').createHash('md5').update(fp).digest('hex');
+          const hasManualCover = fs.existsSync(path.join(LOCAL_THUMB_DIR, mHash + '.manual.jpg'));
+          videos.push({ name: e.name, path: fp, size, hasManualCover });
         } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
           subtitleFiles.push(e.name);
         } else if (e.isDirectory()) {
@@ -442,7 +445,9 @@ app.get('/api/local/scan-folder', (req, res) => {
         const fp = path.join(dirPath, e.name);
         let size = 0;
         try { size = fs.statSync(fp).size; } catch {}
-        videos.push({ name: e.name, path: fp, size });
+        const mHash = require('crypto').createHash('md5').update(fp).digest('hex');
+        const hasManualCover = fs.existsSync(path.join(LOCAL_THUMB_DIR, mHash + '.manual.jpg'));
+        videos.push({ name: e.name, path: fp, size, hasManualCover });
       } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
         subtitleFiles.push(e.name);
       } else if (e.isDirectory()) {
@@ -578,12 +583,22 @@ app.get('/api/local/thumbnail', async (req, res) => {
   if (!pathIsAllowed(filePath)) return res.status(403).send('Forbidden');
   const customTime = req.query.t; // optional custom timestamp in seconds
   try {
-    // Include custom time in hash so different times produce different cache files
+    // Manual cover: hash based on path only (no time), always takes priority
+    const manualHash = require('crypto').createHash('md5').update(filePath).digest('hex');
+    const manualPath = path.join(LOCAL_THUMB_DIR, manualHash + '.manual.jpg');
+    const hasManual = fs.existsSync(manualPath) && fs.statSync(manualPath).size > 500;
+    console.log('[thumb] path:', filePath, 't:', customTime, 'manual:', hasManual);
+    if (hasManual) {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      return res.sendFile(manualPath);
+    }
+
+    // Auto-generated thumbnail: hash includes time
     const hashInput = customTime ? filePath + '@' + customTime : filePath;
     const hash = require('crypto').createHash('md5').update(hashInput).digest('hex');
     const thumbPath = path.join(LOCAL_THUMB_DIR, hash + '.jpg');
+
     if (!fs.existsSync(thumbPath) || fs.statSync(thumbPath).size < 500) {
-      // Delete failed/tiny thumbnail
       try { fs.unlinkSync(thumbPath); } catch {}
       let ok = false;
       if (customTime != null) {
@@ -609,6 +624,7 @@ app.get('/api/local/thumbnail', async (req, res) => {
       }
       if (!ok) return res.status(404).send('Thumbnail failed');
     }
+    // Auto thumbnail: long cache (frontend only cache-busts manual covers)
     if (req.query._) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     } else {
@@ -1170,6 +1186,122 @@ app.get('/api/local/convert-download', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════
+// ── Local Upload & Cover API ──
+// ═══════════════════════════════════════════════════════
+
+const localUploadStorage = multer.diskStorage({
+  destination: (_req, _f, cb) => {
+    const tmpDir = path.join(UPLOADS, 'tmp-uploads');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    cb(null, tmpDir);
+  },
+  filename: (_req, file, cb) => {
+    // Safe filename: strip path separators, limit length
+    const safe = file.originalname.replace(/[/\\]/g, '_').substring(0, 200);
+    cb(null, Date.now() + '_' + safe);
+  }
+});
+const localUpload = multer({ storage: localUploadStorage, limits: { fileSize: 4 * 1024 * 1024 * 1024 } });
+
+app.post('/api/local/upload-video', (req, res, next) => {
+  localUpload.array('files', 50)(req, res, (err) => {
+    if (err) {
+      console.error('[upload] multer error:', err.message, err.code);
+      return res.status(400).json({ error: '上传错误: ' + err.message });
+    }
+    console.log('[upload] files received:', req.files ? req.files.length : 0);
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: '没有上传文件' });
+
+    // Determine target folder
+    const wl = readWhitelist();
+    let targetFolder;
+    const reqFolder = req.body && req.body.folderPath;
+    if (reqFolder && typeof reqFolder === 'string' && reqFolder.trim()) {
+      targetFolder = reqFolder.trim();
+    } else if (wl.length > 0) {
+      targetFolder = path.join(wl[0], 'NewUpload');
+    } else {
+      targetFolder = path.join(UPLOADS, 'NewUpload');
+    }
+    if (!pathIsAllowed(targetFolder)) return res.status(403).json({ error: '路径不在白名单中' });
+    if (!fs.existsSync(targetFolder)) fs.mkdirSync(targetFolder, { recursive: true });
+
+    // Move files from temp to target
+    const moved = [];
+    for (const f of req.files) {
+      // Fix UTF-8 filenames garbled by multer's latin1 default decoding
+      let origName = f.originalname;
+      try { origName = Buffer.from(origName, 'latin1').toString('utf8'); } catch (e) {}
+      const safeName = origName.replace(/[/\\]/g, '_').substring(0, 200);
+      const destPath = path.join(targetFolder, safeName);
+      try {
+        fs.renameSync(f.path, destPath);
+        moved.push({ name: safeName, path: destPath, size: f.size });
+      } catch (e) {
+        // If rename fails (cross-device), copy instead
+        try {
+          fs.copyFileSync(f.path, destPath);
+          fs.unlinkSync(f.path);
+          moved.push({ name: safeName, path: destPath, size: f.size });
+        } catch (e2) {
+          try { fs.unlinkSync(f.path); } catch {}
+        }
+      }
+    }
+
+    res.json({ success: true, files: moved, count: moved.length, folder: targetFolder });
+  });
+});
+
+app.post('/api/local/set-cover', (req, res) => {
+  const { videoPath, imageData } = req.body;
+  if (!videoPath || !imageData) return res.status(400).json({ error: '参数不完整' });
+  if (!pathIsAllowed(videoPath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  // Manual cover: hash based on path only (no time), so it always shows regardless of slider
+  const hash = require('crypto').createHash('md5').update(videoPath).digest('hex');
+  const thumbPath = path.join(LOCAL_THUMB_DIR, hash + '.manual.jpg');
+  console.log('[set-cover] saving to:', thumbPath);
+
+  const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+  const buffer = Buffer.from(base64Data, 'base64');
+
+  fs.writeFileSync(thumbPath, buffer);
+  res.json({ success: true, thumbPath });
+});
+
+app.delete('/api/local/cover', (req, res) => {
+  const videoPath = req.query.path;
+  console.log('[clear-cover] request path:', videoPath);
+  if (!videoPath) return res.status(400).json({ error: '缺少路径' });
+  if (!pathIsAllowed(videoPath)) return res.status(403).json({ error: '路径不在白名单中' });
+
+  // Manual cover: hash based on path only (no time)
+  const hash = require('crypto').createHash('md5').update(videoPath).digest('hex');
+  const manualPath = path.join(LOCAL_THUMB_DIR, hash + '.manual.jpg');
+  console.log('[clear-cover] checking:', manualPath, 'exists:', fs.existsSync(manualPath));
+
+  try {
+    if (fs.existsSync(manualPath)) fs.unlinkSync(manualPath);
+    console.log('[clear-cover] done, file deleted');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[clear-cover] error:', e.message);
+    res.status(500).json({ error: '删除失败: ' + e.message });
+  }
+});
+
+app.get('/api/local/has-cover', (req, res) => {
+  const videoPath = req.query.path;
+  if (!videoPath) return res.status(400).json({ hasCover: false });
+  const hash = require('crypto').createHash('md5').update(videoPath).digest('hex');
+  const manualPath = path.join(LOCAL_THUMB_DIR, hash + '.manual.jpg');
+  const exists = fs.existsSync(manualPath) && fs.statSync(manualPath).size > 500;
+  console.log('[has-cover] path:', videoPath, 'manual:', manualPath, 'exists:', exists);
+  res.json({ hasCover: exists });
+});
+
+// ═══════════════════════════════════════════════════════
 // ── Super Converter API ──
 // ═══════════════════════════════════════════════════════
 
@@ -1515,11 +1647,49 @@ app.get('/api/convert/batch', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   const wl = readWhitelist();
-  console.log(`Tricks Collection running at http://0.0.0.0:${PORT}`);
+  const localUrl = `http://localhost:${PORT}`;
+  console.log(`Tricks Collection running at ${localUrl}`);
   if (wl.length > 0) {
     console.log(`[whitelist] active (${wl.length} directories):`);
     wl.forEach(d => console.log('  -', d));
   } else {
     console.log('[whitelist] none configured, all paths allowed');
+  }
+
+  // System tray (Windows, optional — skip if systray unavailable)
+  try {
+    const SysTray = require('systray');
+    const icoPath = path.join(PUBLIC_DIR, 'tray-icon.ico');
+
+    const setupTray = (icon) => {
+      const tray = new SysTray({
+        menu: {
+          icon: icon,
+          title: 'Tricks Collection',
+          tooltip: `Tricks Collection - localhost:${PORT}`,
+          items: [
+            { title: '打开浏览器', tooltip: '', checked: false, enabled: true },
+            { title: '退出', tooltip: '', checked: false, enabled: true }
+          ]
+        },
+        debug: false,
+        copyDir: false
+      });
+      tray.on('click', (action) => {
+        if (action.item.title === '打开浏览器') {
+          const { exec: ex } = require('child_process');
+          ex(`start ${localUrl}`);
+        } else if (action.item.title === '退出') {
+          tray.kill();
+          process.exit(0);
+        }
+      });
+    };
+
+    if (fs.existsSync(icoPath)) {
+      setupTray(fs.readFileSync(icoPath).toString('base64'));
+    }
+  } catch (e) {
+    // systray not available, continue without tray
   }
 });

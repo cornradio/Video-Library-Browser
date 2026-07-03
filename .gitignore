@@ -2,3 +2,5 @@ node_modules/
 uploads/
 data/
 videos-tricks.zip
+dist/
+.pkg-cache/

@@ -156,8 +156,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .history-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .fullscreen-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 .fullscreen-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
-.github-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none}
-.github-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.github-btn,.converter-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none;cursor:pointer}
+.github-btn:hover,.converter-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .help-shortcuts{padding:4px 16px 8px}
 .help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
 .help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
@@ -199,7 +199,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 @media(max-width:768px){
   .hamburger{display:block}
   .mobile-more-btn{display:block}
-  .header .btn-ghost,.header .github-btn,.header .history-btn,.header .help-btn{display:none}
+  .header .btn-ghost,.header .github-btn,.header .converter-btn,.header .history-btn,.header .help-btn{display:none}
   .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
@@ -242,7 +242,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
   <a href="/server.html" class="btn btn-ghost btn-sm" style="text-decoration:none">服务器模式</a>
   <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
-  <a href="/converter.html" class="btn btn-ghost btn-sm" style="text-decoration:none">超级转换器</a>
+  <a href="/converter.html" class="converter-btn" title="超级转换器"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></a>
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
   <button class="history-btn" id="historyBtn" title="播放历史"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
   <button class="fullscreen-btn" id="fullscreenBtn" title="网页全屏"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
@@ -1183,11 +1183,12 @@ async function openDetail(file) {
     v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
   } catch (e) { toast('无法加载视频: ' + e.message); }
 
-  // Drag handle: resize video container vertically
+  // Drag handle: resize video container vertically (persisted)
   const vbox = $('#detailVideoBox');
   const handle = $('#videoResizeHandle');
   if (vbox) {
-    vbox.style.height = '50vh';
+    var savedH = localStorage.getItem('detail_video_height');
+    vbox.style.height = savedH ? savedH + 'px' : '50vh';
     if (handle && !handle._bound) {
       handle._bound = true;
       handle.addEventListener('mousedown', function(e) {
@@ -1200,6 +1201,7 @@ async function openDetail(file) {
         function onUp() {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          localStorage.setItem('detail_video_height', vbox.offsetHeight);
         }
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
@@ -1214,6 +1216,7 @@ async function openDetail(file) {
         function onEnd() {
           document.removeEventListener('touchmove', onMove);
           document.removeEventListener('touchend', onEnd);
+          localStorage.setItem('detail_video_height', vbox.offsetHeight);
         }
         document.addEventListener('touchmove', onMove, { passive: false });
         document.addEventListener('touchend', onEnd);
