@@ -215,11 +215,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .mobile-more-menu a,.mobile-more-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 16px;border:none;background:none;color:var(--text);font-size:13px;font-family:inherit;text-decoration:none;cursor:pointer;text-align:left;transition:background .1s}
 .mobile-more-menu a:hover,.mobile-more-menu button:hover{background:var(--hover)}
 
+/* ── Mode Dropdown ── */
+.mode-trigger{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;user-select:none}
+.mode-trigger:hover{background:var(--card)}
+.mode-trigger h1{margin:0;pointer-events:none}
+.mode-arrow{font-size:10px;color:var(--text3);transition:transform .2s;pointer-events:none}
+.mode-trigger.open .mode-arrow{transform:rotate(180deg)}
+.mode-dropdown{display:none;position:fixed;top:52px;left:20px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mode-dropdown.show{display:block}
+.mode-dropdown a{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--text);font-size:13px;text-decoration:none;transition:background .1s}
+.mode-dropdown a:hover{background:var(--hover)}
+.mode-dropdown a.active{color:var(--accent);font-weight:600}
+.mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
   .mobile-more-btn{display:block}
-  .header .btn-ghost,.header .github-btn,.header .converter-btn,.header .upload-icon-btn,.header .history-btn,.header .help-btn{display:none}
+  .header .github-btn,.header .upload-icon-btn,.header .history-btn,.header .help-btn{display:none}
   .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
@@ -258,11 +271,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="header">
   <button class="hamburger" id="hamburgerBtn">&#9776;</button>
-  <h1><span>服务器</span>浏览</h1>
+  <div class="mode-trigger" id="modeTrigger">
+    <h1><span>服务器</span>浏览</h1>
+    <span class="mode-arrow">▼</span>
+  </div>
+  <div class="mode-dropdown" id="modeDropdown">
+    <a href="/"><span class="mode-icon">⭐</span>收藏库</a>
+    <a href="/local.html"><span class="mode-icon">💻</span>本地模式</a>
+    <a href="/server.html" class="active"><span class="mode-icon">🖥️</span>服务器浏览</a>
+    <a href="/converter.html"><span class="mode-icon">🔄</span>超级转换器</a>
+    <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
+  </div>
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
-  <a href="/local.html" class="btn btn-ghost btn-sm" style="text-decoration:none">本地模式</a>
-  <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
-  <a href="/converter.html" class="converter-btn" title="超级转换器"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></a>
   <button class="upload-icon-btn" id="uploadBtn" title="上传视频"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
   <input type="file" id="uploadInput" multiple accept="video/*" style="display:none">
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
@@ -275,27 +295,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     </div>
     <div class="history-grid" id="historyGrid"></div>
   </div>
-  <button class="help-btn" id="helpBtn" title="资源导航">?</button>
+  <button class="help-btn" id="helpBtn" title="快捷键">?</button>
   <div class="help-panel" id="helpPanel">
-    <div class="help-section">
-      <div class="help-title">字幕下载</div>
-      <a href="https://zimuku.org" target="_blank">字幕库</a>
-      <a href="https://subhd.tv" target="_blank">SubHD</a>
-      <a href="https://opensubtitles.org" target="_blank">OpenSubtitles</a>
-      <a href="https://assrt.net" target="_blank">assrt (ASS字幕)</a>
-      <a href="https://a4k.net" target="_blank">A4K字幕网</a>
-    </div>
-    <div class="help-section">
-      <div class="help-title">影视资源</div>
-      <a href="https://mikanani.me" target="_blank">蜜柑计划 (动漫)</a>
-      <a href="https://bangumi.moe" target="_blank">Bangumi (动漫)</a>
-      <a href="https://www.yysub.net" target="_blank">YYeTs 人人字幕</a>
-    </div>
-    <div class="help-section">
-      <div class="help-title">工具</div>
-      <a href="https://www.mediaarea.net/MediaInfo" target="_blank">MediaInfo (视频信息)</a>
-      <a href="https://ffmpeg.org" target="_blank">FFmpeg</a>
-    </div>
     <div class="help-section">
       <div class="help-title">快捷键</div>
       <div class="help-shortcuts">
@@ -314,10 +315,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   </div>
   <button class="mobile-more-btn" id="mobileMoreBtn">&#8942;</button>
   <div class="mobile-more-menu" id="mobileMoreMenu">
-    <a href="/local.html">本地模式</a>
-    <a href="/">收藏库</a>
     <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a>
-    <a href="/converter.html">超级转换器</a>
     <button id="mobileUploadBtn">上传视频</button>
     <button id="mobileHistoryBtn">播放历史</button>
     <button id="mobileHelpBtn">资源导航</button>
@@ -497,6 +495,20 @@ $('#helpBtn').onclick = (e) => {
 document.addEventListener('click', (e) => {
   if (!$('#helpPanel').contains(e.target) && e.target !== $('#helpBtn')) {
     $('#helpPanel').classList.remove('show');
+  }
+});
+
+// ── Mode dropdown ──
+$('#modeTrigger').onclick = (e) => {
+  e.stopPropagation();
+  const dd = $('#modeDropdown');
+  const isOpen = dd.classList.toggle('show');
+  $('#modeTrigger').classList.toggle('open', isOpen);
+};
+document.addEventListener('click', (e) => {
+  if (!$('#modeDropdown').contains(e.target) && !$('#modeTrigger').contains(e.target)) {
+    $('#modeDropdown').classList.remove('show');
+    $('#modeTrigger').classList.remove('open');
   }
 });
 
@@ -845,14 +857,12 @@ function showVideosForFolder(folderPath) {
       const sec = t % 60;
       $('#thumbTimeVal').textContent = min > 0 ? `${min}m${sec}s` : `${t}s`;
       // Update already-rendered cards to use the correct thumb time (skip manual covers)
-      document.querySelectorAll('#grid .card img').forEach(img => {
-        const card = img.closest('.card');
-        const videoNode = card ? findVideoInTree(S.tree, card.dataset.path) : null;
+      document.querySelectorAll('#grid .card').forEach(card => {
+        const videoNode = findVideoInTree(S.tree, card.dataset.path);
         if (videoNode && videoNode.hasManualCover) return;
-        const url = new URL(img.src, location.origin);
-        if (url.pathname === '/api/local/thumbnail') {
-          url.searchParams.set('t', t);
-          img.src = url.toString();
+        const img = card.querySelector('.card-media img');
+        if (img && card.dataset.path) {
+          img.src = `/api/local/thumbnail?path=${encodeURIComponent(card.dataset.path)}&t=${t}`;
         }
       });
     })
@@ -865,23 +875,12 @@ function showVideosForFolder(folderPath) {
   }
   grid.innerHTML = '';
 
-  // Create lightweight placeholders — real content filled on scroll
-  const frag = document.createDocumentFragment();
-  videos.forEach(f => {
-    const d = document.createElement('div');
-    d.className = 'card placeholder';
-    d.dataset.path = f.path;
-    d.innerHTML = '<div class="card-media"></div><div class="card-info"></div>';
-    frag.appendChild(d);
-  });
-  grid.appendChild(frag);
-
   // Lazy hydrate cards near viewport
   // Staggered hydration: batch card population to avoid jank
   const pendingCards = [];
   let hydrateRaf = null;
   function processCardBatch() {
-    const batch = pendingCards.splice(0, 8); // 8 cards per frame
+    const batch = pendingCards.splice(0, 4);
     for (const { card, file } of batch) {
       if (card.classList.contains('placeholder') && file) populateCard(card, file);
     }
@@ -899,6 +898,17 @@ function showVideosForFolder(folderPath) {
     }
     if (!hydrateRaf && pendingCards.length > 0) hydrateRaf = requestAnimationFrame(processCardBatch);
   }, { root: $('#mainArea'), rootMargin: '200px 0px' });
+
+  // Create lightweight placeholders — real content filled on scroll
+  const frag = document.createDocumentFragment();
+  videos.forEach(f => {
+    const d = document.createElement('div');
+    d.className = 'card placeholder';
+    d.dataset.path = f.path;
+    d.innerHTML = '<div class="card-media"></div><div class="card-info"></div>';
+    frag.appendChild(d);
+  });
+  grid.appendChild(frag);
 
   grid.querySelectorAll('.card.placeholder').forEach(card => S.cardObserver.observe(card));
 
@@ -989,7 +999,7 @@ function populateCard(card, f) {
 
   card.innerHTML = `
     <div class="card-media">
-      <img src="${imgSrc}" loading="lazy" onerror="this.style.display='none';this.parentNode.querySelector('.card-thumb-fail').style.display='flex'" style="background:#111">
+      <img src="${imgSrc}" loading="lazy" fetchpriority="low" data-src="${imgSrc}" onerror="this.style.display='none';this.parentNode.querySelector('.card-thumb-fail').style.display='flex'" style="background:#111">
       <div class="card-thumb-fail" style="display:none">&#9655;</div>
       <video muted loop preload="none" playsinline></video>
       <span style="position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:rgba(0,0,0,.7);color:var(--text2)">${ext}</span>
@@ -1081,7 +1091,7 @@ function filterGrid(query) {
   const pendingCards2 = [];
   let hydrateRaf2 = null;
   function processCardBatch2() {
-    const batch = pendingCards2.splice(0, 8);
+    const batch = pendingCards2.splice(0, 4);
     for (const { card, file } of batch) {
       if (card.classList.contains('placeholder') && file) populateCard(card, file);
     }
@@ -1160,12 +1170,11 @@ $('#refreshCoversBtn').onclick = async () => {
   btn.textContent = '生成中...';
   let done = 0;
   for (const img of visibleImgs) {
-    const url = new URL(img.src, location.origin);
-    const filePath = url.searchParams.get('path');
+    const card = img.closest('.card');
+    const filePath = card ? card.dataset.path : null;
     if (!filePath) continue;
     // Skip cards with manual covers — they should not be overwritten by auto thumbnails
-    const card = img.closest('.card');
-    const videoNode = card ? findVideoInTree(S.tree, card.dataset.path) : null;
+    const videoNode = card ? findVideoInTree(S.tree, filePath) : null;
     if (videoNode && videoNode.hasManualCover) { done++; continue; }
     const newSrc = `/api/local/thumbnail?path=${encodeURIComponent(filePath)}&t=${t}&_=${Date.now()}`;
     await new Promise((resolve) => {

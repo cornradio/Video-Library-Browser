@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.png">
+<title>资源获取 - Tricks</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0a;--card:#141414;--border:#222;--text:#e8e8e8;--text2:#777;--text3:#444;--accent:#ff5722;--accent-dim:rgba(255,87,34,.12);--green:#66bb6a;--red:#ef5350;--radius:10px;--speed:180ms}
+html{scrollbar-color:#333 #0a0a0a}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+.header{position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:50;gap:12px}
+.header h1{font-size:18px;font-weight:700;white-space:nowrap}.header h1 span{color:var(--accent)}
+.mode-trigger{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;user-select:none}
+.mode-trigger:hover{background:var(--card)}
+.mode-trigger h1{margin:0;pointer-events:none}
+.mode-arrow{font-size:10px;color:var(--text3);transition:transform .2s;pointer-events:none}
+.mode-trigger.open .mode-arrow{transform:rotate(180deg)}
+.mode-dropdown{display:none;position:fixed;top:52px;left:20px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mode-dropdown.show{display:block}
+.mode-dropdown a{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--text);font-size:13px;text-decoration:none;transition:background .1s}
+.mode-dropdown a:hover{background:rgba(255,255,255,.05)}
+.mode-dropdown a.active{color:var(--accent);font-weight:600}
+.mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
+.main{margin-top:52px;max-width:800px;margin-left:auto;margin-right:auto;padding:24px 20px}
+.cat{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.cat-head{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.cat-title-input{background:none;border:none;color:var(--text);font-size:15px;font-weight:600;flex:1;outline:none;font-family:inherit}
+.cat-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.cat-del:hover{color:var(--red);background:rgba(239,83,80,.1)}
+.link-list{padding:8px 16px}
+.link-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.link-item:last-child{border-bottom:none}
+.link-item a{flex:1;color:var(--text);text-decoration:none;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-item a:hover{color:var(--accent)}
+.link-url{font-size:11px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;flex-shrink:0}
+.link-del:hover{color:var(--red);background:rgba(239,83,80,.1)}
+.add-link-btn{display:flex;align-items:center;gap:6px;width:100%;padding:8px 16px;background:none;border:none;border-top:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit;transition:background .1s}
+.add-link-btn:hover{background:rgba(255,87,34,.08);color:var(--accent)}
+.add-cat-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:none;border:1px dashed var(--border);border-radius:10px;color:var(--text2);font-size:13px;cursor:pointer;font-family:inherit;transition:all .15s;margin-bottom:16px}
+.add-cat-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,87,34,.08)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;max-width:90vw}
+.modal h3{font-size:15px;margin-bottom:14px;color:var(--text)}
+.modal label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;margin-top:10px}
+.modal input{width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.modal input:focus{border-color:var(--accent)}
+.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal-btns button{padding:7px 18px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-family:inherit}
+.modal-btns .btn-cancel{background:var(--border);color:var(--text2)}
+.modal-btns .btn-ok{background:var(--accent);color:#fff}
+.modal-btns .btn-ok:hover{background:#e64a19}
+.save-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+.save-toast.show{opacity:1}
+@media(max-width:768px){.main{padding:16px 12px}.link-url{display:none}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="mode-trigger" id="modeTrigger">
+    <h1><span>资源</span>获取</h1>
+    <span class="mode-arrow">&#9660;</span>
+  </div>
+  <div class="mode-dropdown" id="modeDropdown">
+    <a href="/"><span class="mode-icon">&#11088;</span>收藏库</a>
+    <a href="/local.html"><span class="mode-icon">&#128187;</span>本地模式</a>
+    <a href="/server.html"><span class="mode-icon">&#128421;</span>服务器浏览</a>
+    <a href="/converter.html"><span class="mode-icon">&#128260;</span>超级转换器</a>
+    <a href="/resources.html" class="active"><span class="mode-icon">&#128230;</span>资源获取</a>
+  </div>
+</div>
+<div class="main">
+  <div id="categories"></div>
+  <button class="add-cat-btn" id="addCatBtn">+ 添加分类</button>
+</div>
+<div class="modal-overlay" id="addLinkModal">
+  <div class="modal">
+    <h3 id="modalTitle">添加链接</h3>
+    <label>名称</label>
+    <input type="text" id="linkNameInput" placeholder="例如：字幕库" autocomplete="off">
+    <label>网址</label>
+    <input type="text" id="linkUrlInput" placeholder="https://..." autocomplete="off">
+    <div class="modal-btns">
+      <button class="btn-cancel" id="modalCancelBtn">取消</button>
+      <button class="btn-ok" id="modalOkBtn">添加</button>
+    </div>
+  </div>
+</div>
+<div class="save-toast" id="saveToast">已保存</div>
+<script>
+const $ = s => document.querySelector(s);
+let data = [];
+let addLinkCatIdx = -1;
+
+$('#modeTrigger').onclick = (e) => {
+  e.stopPropagation();
+  const dd = $('#modeDropdown');
+  const isOpen = dd.classList.toggle('show');
+  $('#modeTrigger').classList.toggle('open', isOpen);
+};
+document.addEventListener('click', (e) => {
+  if (!$('#modeDropdown').contains(e.target) && !$('#modeTrigger').contains(e.target)) {
+    $('#modeDropdown').classList.remove('show');
+    $('#modeTrigger').classList.remove('open');
+  }
+});
+
+async function loadData() {
+  try {
+    const r = await fetch('/api/resource-links');
+    data = await r.json();
+  } catch { data = []; }
+  render();
+}
+
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await fetch('/api/resource-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      showToast();
+    } catch (e) { console.error('Save failed:', e); }
+  }, 300);
+}
+
+function showToast() {
+  const t = $('#saveToast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render() {
+  const container = $('#categories');
+  container.innerHTML = '';
+  data.forEach((cat, ci) => {
+    const el = document.createElement('div');
+    el.className = 'cat';
+    const linksHtml = cat.links.map((l, li) =>
+      '<div class="link-item">' +
+        '<a href="' + escHtml(l.url) + '" target="_blank" rel="noopener">' + escHtml(l.name) + '</a>' +
+        '<span class="link-url">' + escHtml(l.url) + '</span>' +
+        '<button class="link-del" data-ci="' + ci + '" data-li="' + li + '" title="删除">&#10005;</button>' +
+      '</div>'
+    ).join('');
+    el.innerHTML =
+      '<div class="cat-head">' +
+        '<input class="cat-title-input" value="' + escHtml(cat.title) + '" data-ci="' + ci + '" placeholder="分类名称">' +
+        '<button class="cat-del" data-ci="' + ci + '" title="删除分类">&#10005;</button>' +
+      '</div>' +
+      '<div class="link-list">' + linksHtml + '</div>' +
+      '<button class="add-link-btn" data-ci="' + ci + '">+ 添加链接</button>';
+    container.appendChild(el);
+  });
+
+  container.onclick = (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.classList.contains('cat-del')) {
+      const ci = Number(btn.dataset.ci);
+      if (confirm('删除分类「' + data[ci].title + '」？')) {
+        data.splice(ci, 1);
+        render();
+        save();
+      }
+    } else if (btn.classList.contains('link-del')) {
+      const ci = Number(btn.dataset.ci);
+      const li = Number(btn.dataset.li);
+      data[ci].links.splice(li, 1);
+      render();
+      save();
+    } else if (btn.classList.contains('add-link-btn')) {
+      addLinkCatIdx = Number(btn.dataset.ci);
+      $('#modalTitle').textContent = '添加链接到「' + data[addLinkCatIdx].title + '」';
+      $('#linkNameInput').value = '';
+      $('#linkUrlInput').value = '';
+      $('#addLinkModal').classList.add('show');
+      setTimeout(() => $('#linkNameInput').focus(), 100);
+    }
+  };
+
+  container.oninput = (e) => {
+    if (e.target.classList.contains('cat-title-input')) {
+      const ci = Number(e.target.dataset.ci);
+      data[ci].title = e.target.value;
+      save();
+    }
+  };
+}
+
+$('#addCatBtn').onclick = () => {
+  data.push({ title: '新分类', links: [] });
+  render();
+  save();
+  const inputs = document.querySelectorAll('.cat-title-input');
+  if (inputs.length) {
+    const last = inputs[inputs.length - 1];
+    last.focus();
+    last.select();
+  }
+};
+
+$('#modalCancelBtn').onclick = () => $('#addLinkModal').classList.remove('show');
+$('#addLinkModal').onclick = (e) => { if (e.target === $('#addLinkModal')) $('#addLinkModal').classList.remove('show'); };
+
+$('#modalOkBtn').onclick = () => {
+  const name = $('#linkNameInput').value.trim();
+  let url = $('#linkUrlInput').value.trim();
+  if (!name || !url) return;
+  if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+  if (addLinkCatIdx >= 0 && addLinkCatIdx < data.length) {
+    data[addLinkCatIdx].links.push({ name, url });
+    render();
+    save();
+  }
+  $('#addLinkModal').classList.remove('show');
+};
+
+$('#linkUrlInput').onkeydown = (e) => { if (e.key === 'Enter') $('#modalOkBtn').click(); };
+$('#linkNameInput').onkeydown = (e) => { if (e.key === 'Enter') $('#linkUrlInput').focus(); };
+
+loadData();
+</script>
+</body>
+</html>
