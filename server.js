@@ -1,10 +1,11 @@
+const os = require('os');
+
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { exec, execFile, spawn } = require('child_process');
 const { randomUUID } = require('crypto');
-const os = require('os');
 
 const PORT = process.env.PORT || process.argv[2] || 3000;
 const BASE = process.pkg ? path.dirname(process.execPath) : __dirname;
@@ -1793,7 +1794,7 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // System tray (Windows, optional — skip if systray unavailable)
   try {
-    const SysTray = require('systray');
+    const SysTray = require('systray').default;
     const icoPath = path.join(PUBLIC_DIR, 'tray-icon.ico');
 
     const setupTray = (icon) => {
@@ -1808,9 +1809,9 @@ app.listen(PORT, '0.0.0.0', () => {
           ]
         },
         debug: false,
-        copyDir: false
+        copyDir: !!process.pkg
       });
-      tray.on('click', (action) => {
+      tray.onClick((action) => {
         if (action.item.title === '打开浏览器') {
           const { exec: ex } = require('child_process');
           ex(`start ${localUrl}`);
@@ -1819,12 +1820,21 @@ app.listen(PORT, '0.0.0.0', () => {
           process.exit(0);
         }
       });
+      tray.onError((err) => {
+        console.error('[tray] error:', err);
+      });
+      tray.onExit((code) => {
+        console.log('[tray] process exited with code', code);
+      });
     };
 
     if (fs.existsSync(icoPath)) {
       setupTray(fs.readFileSync(icoPath).toString('base64'));
+      console.log('[tray] system tray icon created');
+    } else {
+      console.log('[tray] icon not found at', icoPath);
     }
   } catch (e) {
-    // systray not available, continue without tray
+    console.log('[tray] systray not available:', e.message);
   }
 });
