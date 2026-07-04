@@ -25,9 +25,19 @@ a:hover{color:var(--text)}
 .hamburger:hover{background:rgba(255,255,255,.08)}
 .header h1{font-size:17px;font-weight:700;white-space:nowrap}
 .header h1 span{color:var(--accent)}
-.header-nav{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
-.header-nav a{font-size:12px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);color:var(--text2);transition:all var(--speed);white-space:nowrap}
-.header-nav a:hover,.header-nav a.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.header-nav{display:none}
+/* ── Mode Dropdown ── */
+.mode-trigger{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;user-select:none}
+.mode-trigger:hover{background:var(--card)}
+.mode-trigger h1{margin:0;pointer-events:none}
+.mode-arrow{font-size:10px;color:var(--text3);transition:transform .2s;pointer-events:none}
+.mode-trigger.open .mode-arrow{transform:rotate(180deg)}
+.mode-dropdown{display:none;position:fixed;top:52px;left:20px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mode-dropdown.show{display:block}
+.mode-dropdown a{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--text);font-size:13px;text-decoration:none;transition:background .1s}
+.mode-dropdown a:hover{background:rgba(255,255,255,.06)}
+.mode-dropdown a.active{color:var(--accent);font-weight:600}
+.mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
 
 /* ── Side Menu ── */
 .side-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -112,7 +122,6 @@ select.search-input{appearance:none;background-image:url("data:image/svg+xml,%3C
 @media(max-width:640px){
   .header{padding:0 10px;gap:8px}
   .header h1{font-size:15px}
-  .header-nav a{font-size:11px;padding:5px 8px}
   .tool-section{padding:14px 10px}
   .field-row{flex-direction:column}
   .field-row .btn{width:100%}
@@ -138,12 +147,17 @@ select.search-input{appearance:none;background-image:url("data:image/svg+xml,%3C
 <!-- Header -->
 <div class="header">
   <button class="hamburger" onclick="toggleMenu()">&#9776;</button>
-  <h1>超级<span>转换器</span></h1>
-  <nav class="header-nav">
-    <a href="/">收藏库</a>
-    <a href="/server.html">服务器</a>
-    <a href="/local.html">本地</a>
-  </nav>
+  <div class="mode-trigger" id="modeTrigger">
+    <h1>超级<span>转换器</span></h1>
+    <span class="mode-arrow">▼</span>
+  </div>
+  <div class="mode-dropdown" id="modeDropdown">
+    <a href="/"><span class="mode-icon">⭐</span>收藏库</a>
+    <a href="/local.html"><span class="mode-icon">💻</span>本地模式</a>
+    <a href="/server.html"><span class="mode-icon">🖥️</span>服务器浏览</a>
+    <a href="/converter.html" class="active"><span class="mode-icon">🔄</span>超级转换器</a>
+    <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
+  </div>
 </div>
 
 <!-- Tabs -->
@@ -339,6 +353,22 @@ select.search-input{appearance:none;background-image:url("data:image/svg+xml,%3C
 
 <script src="/shared.js"></script>
 <script>
+/* ── Mode Dropdown ── */
+document.getElementById('modeTrigger').onclick = function(e) {
+  e.stopPropagation();
+  var dd = document.getElementById('modeDropdown');
+  var isOpen = dd.classList.toggle('show');
+  document.getElementById('modeTrigger').classList.toggle('open', isOpen);
+};
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('modeDropdown');
+  var mt = document.getElementById('modeTrigger');
+  if (!dd.contains(e.target) && !mt.contains(e.target)) {
+    dd.classList.remove('show');
+    mt.classList.remove('open');
+  }
+});
+
 /* ── Menu ── */
 function toggleMenu(){
   document.getElementById('sideMenu').classList.toggle('open');
@@ -385,7 +415,7 @@ function doSearch(prefix) {
     case 'merge-s':
       inputEl = document.getElementById('merge-ssearch');
       resultsEl = document.getElementById('merge-sresults');
-      searchType = 'file'; baseEl = document.getElementById('merge-base'); break;
+      searchType = 'subtitle'; baseEl = document.getElementById('merge-base'); break;
     case 'single':
       inputEl = document.getElementById('single-search');
       resultsEl = document.getElementById('single-results');
@@ -418,7 +448,7 @@ function doSearch(prefix) {
         resultsEl.innerHTML = items.map(function(item) {
           var p = typeof item === 'string' ? item : (item.path || item.name || '');
           var isFolder = searchType === 'folder' || (typeof item === 'object' && item.isDir);
-          var icon = isFolder ? '\u{1F4C1}' : '\u{1F3AC}';
+          var icon = isFolder ? '\u{1F4C1}' : searchType === 'subtitle' ? '\u{1F4C4}' : '\u{1F3AC}';
           return '<div class="sr-item" data-path="' + escAttr(p) + '"><span class="ico">' + icon + '</span><span class="path">' + escHtml(p) + '</span></div>';
         }).join('');
         resultsEl.classList.add('show');
@@ -428,6 +458,40 @@ function doSearch(prefix) {
             if (target) target.value = el.dataset.path;
             resultsEl.classList.remove('show');
             toast('已选择: ' + el.dataset.path.split('/').pop());
+
+            // Auto-search for matching subtitle when video is selected in merge tab
+            if (prefix === 'merge-v') {
+              var videoPath = el.dataset.path;
+              var basePath = document.getElementById('merge-base').value.trim();
+              var videoName = videoPath.split('/').pop().replace(/\.[^.]+$/, '');
+              if (basePath && videoName) {
+                var subParams = new URLSearchParams({ q: videoName, type: 'subtitle', basePath: basePath });
+                fetch('/api/convert/search?' + subParams.toString())
+                  .then(function(r){ return r.json(); })
+                  .then(function(items) {
+                    var arr = Array.isArray(items) ? items : (items.results || items.files || []);
+                    if (arr.length === 1) {
+                      document.getElementById('merge-sub').value = arr[0].path;
+                      toast('已自动匹配字幕: ' + arr[0].name);
+                    } else if (arr.length > 1) {
+                      var subResults = document.getElementById('merge-sresults');
+                      document.getElementById('merge-ssearch').value = videoName;
+                      subResults.innerHTML = arr.map(function(item) {
+                        return '<div class="sr-item" data-path="' + escAttr(item.path) + '"><span class="ico">\u{1F4C4}</span><span class="path">' + escHtml(item.name) + '</span></div>';
+                      }).join('');
+                      subResults.classList.add('show');
+                      subResults.querySelectorAll('.sr-item[data-path]').forEach(function(sel) {
+                        sel.addEventListener('click', function() {
+                          document.getElementById('merge-sub').value = sel.dataset.path;
+                          subResults.classList.remove('show');
+                          toast('已选择: ' + sel.dataset.path.split('/').pop());
+                        });
+                      });
+                    }
+                  })
+                  .catch(function(){});
+              }
+            }
           });
         });
       })
@@ -507,6 +571,21 @@ function connectSSE(url, prefix) {
   es.addEventListener('message', function(e) {
     var data;
     try { data = JSON.parse(e.data); } catch(_) { data = { message: e.data }; }
+
+    // Handle done type (server sends unnamed events with type field)
+    if (data.type === 'done') {
+      setProgress(prefix, 100, '完成');
+      addLog(logId, '任务完成!' + (data.output ? ' 输出: ' + data.output.split('/').pop() : ''), 'success');
+      es.close();
+      return;
+    }
+
+    // Handle error type
+    if (data.type === 'error') {
+      addLog(logId, '错误: ' + (data.msg || data.message || '未知错误'), 'error');
+      es.close();
+      return;
+    }
 
     // Progress
     if (data.progress !== undefined || data.percent !== undefined || data.percentage !== undefined) {

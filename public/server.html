@@ -119,7 +119,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .clip-stop:hover{background:var(--accent-dim)}
 .clip-add{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;position:sticky;bottom:0;z-index:10;box-shadow:0 -4px 12px rgba(0,0,0,.4)}
 .clip-add-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.clip-add-row .trim-val{font-family:monospace;font-size:13px;min-width:58px;padding:3px 7px;background:var(--card);border:1px solid var(--border);border-radius:4px;text-align:center;color:var(--text)}
+.clip-add-row .trim-val{font-family:monospace;font-size:13px;min-width:58px;padding:3px 7px;background:var(--card);border:1px solid var(--border);border-radius:4px;text-align:center;color:var(--text);cursor:ns-resize;user-select:none}
 .field{margin-bottom:12px}
 .field input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
 .field input:focus{border-color:var(--accent)}
@@ -283,6 +283,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
   </div>
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
+  <div style="flex:1"></div>
   <button class="upload-icon-btn" id="uploadBtn" title="上传视频"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
   <input type="file" id="uploadInput" multiple accept="video/*" style="display:none">
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
@@ -1910,6 +1911,26 @@ $('#cancelEditBtn').onclick = () => resetClipForm();
 
 $('#markStartBtn').onclick = () => { markS = parseFloat($('#video').currentTime.toFixed(2)); $('#markStartVal').textContent = markS.toFixed(2) + 's'; };
 $('#markEndBtn').onclick = () => { markE = parseFloat($('#video').currentTime.toFixed(2)); $('#markEndVal').textContent = markE.toFixed(2) + 's'; };
+
+// Wheel scroll to adjust A/B point times
+(function() {
+  const v = $('#video');
+  function onWheelAdjust(which, e) {
+    if (which === 'S' && markS === null) return;
+    if (which === 'E' && markE === null) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 0.1 : 0.5;
+    const delta = e.deltaY < 0 ? step : -step;
+    const dur = v.duration || Infinity;
+    let val = (which === 'S' ? markS : markE) + delta;
+    val = Math.max(0, Math.min(dur, parseFloat(val.toFixed(2))));
+    if (which === 'S') { markS = val; $('#markStartVal').textContent = val.toFixed(2) + 's'; }
+    else { markE = val; $('#markEndVal').textContent = val.toFixed(2) + 's'; }
+    v.currentTime = val;
+  }
+  $('#markStartVal').addEventListener('wheel', e => onWheelAdjust('S', e), { passive: false });
+  $('#markEndVal').addEventListener('wheel', e => onWheelAdjust('E', e), { passive: false });
+})();
 
 // ── Keyboard Actions ──
 async function deleteCurrentVideo() {

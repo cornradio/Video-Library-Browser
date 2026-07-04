@@ -195,11 +195,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .mobile-more-menu a,.mobile-more-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 16px;border:none;background:none;color:var(--text);font-size:13px;font-family:inherit;text-decoration:none;cursor:pointer;text-align:left;transition:background .1s}
 .mobile-more-menu a:hover,.mobile-more-menu button:hover{background:var(--hover)}
 
+/* ── Mode Dropdown ── */
+.mode-trigger{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;user-select:none}
+.mode-trigger:hover{background:var(--card)}
+.mode-trigger h1{margin:0;pointer-events:none}
+.mode-arrow{font-size:10px;color:var(--text3);transition:transform .2s;pointer-events:none}
+.mode-trigger.open .mode-arrow{transform:rotate(180deg)}
+.mode-dropdown{display:none;position:fixed;top:52px;left:20px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mode-dropdown.show{display:block}
+.mode-dropdown a{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--text);font-size:13px;text-decoration:none;transition:background .1s}
+.mode-dropdown a:hover{background:var(--hover)}
+.mode-dropdown a.active{color:var(--accent);font-weight:600}
+.mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
   .mobile-more-btn{display:block}
-  .header .btn-ghost,.header .github-btn,.header .converter-btn,.header .history-btn,.header .help-btn{display:none}
+  .header .github-btn,.header .converter-btn,.header .history-btn,.header .help-btn{display:none}
   .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
@@ -238,10 +251,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="header">
   <button class="hamburger" id="hamburgerBtn">&#9776;</button>
-  <h1><span>本地</span>浏览</h1>
+  <div class="mode-trigger" id="modeTrigger">
+    <h1><span>本地</span>浏览</h1>
+    <span class="mode-arrow">▼</span>
+  </div>
+  <div class="mode-dropdown" id="modeDropdown">
+    <a href="/"><span class="mode-icon">⭐</span>收藏库</a>
+    <a href="/local.html" class="active"><span class="mode-icon">💻</span>本地模式</a>
+    <a href="/server.html"><span class="mode-icon">🖥️</span>服务器浏览</a>
+    <a href="/converter.html"><span class="mode-icon">🔄</span>超级转换器</a>
+    <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
+  </div>
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
-  <a href="/server.html" class="btn btn-ghost btn-sm" style="text-decoration:none">服务器模式</a>
-  <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-left:auto">收藏库</a>
+  <div style="flex:1"></div>
   <a href="/converter.html" class="converter-btn" title="超级转换器"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></a>
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
   <button class="history-btn" id="historyBtn" title="播放历史"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
@@ -253,27 +275,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     </div>
     <div class="history-grid" id="historyGrid"></div>
   </div>
-  <button class="help-btn" id="helpBtn" title="资源导航">?</button>
+  <button class="help-btn" id="helpBtn" title="快捷键">?</button>
   <div class="help-panel" id="helpPanel">
-    <div class="help-section">
-      <div class="help-title">字幕下载</div>
-      <a href="https://zimuku.org" target="_blank">字幕库</a>
-      <a href="https://subhd.tv" target="_blank">SubHD</a>
-      <a href="https://opensubtitles.org" target="_blank">OpenSubtitles</a>
-      <a href="https://assrt.net" target="_blank">assrt (ASS字幕)</a>
-      <a href="https://a4k.net" target="_blank">A4K字幕网</a>
-    </div>
-    <div class="help-section">
-      <div class="help-title">影视资源</div>
-      <a href="https://mikanani.me" target="_blank">蜜柑计划 (动漫)</a>
-      <a href="https://bangumi.moe" target="_blank">Bangumi (动漫)</a>
-      <a href="https://www.yysub.net" target="_blank">YYeTs 人人字幕</a>
-    </div>
-    <div class="help-section">
-      <div class="help-title">工具</div>
-      <a href="https://www.mediaarea.net/MediaInfo" target="_blank">MediaInfo (视频信息)</a>
-      <a href="https://ffmpeg.org" target="_blank">FFmpeg</a>
-    </div>
     <div class="help-section">
       <div class="help-title">快捷键</div>
       <div class="help-shortcuts">
@@ -292,12 +295,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   </div>
   <button class="mobile-more-btn" id="mobileMoreBtn">&#8942;</button>
   <div class="mobile-more-menu" id="mobileMoreMenu">
-    <a href="/server.html">服务器模式</a>
-    <a href="/">收藏库</a>
     <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a>
-    <a href="/converter.html">超级转换器</a>
     <button id="mobileHistoryBtn">播放历史</button>
-    <button id="mobileHelpBtn">资源导航</button>
+    <button id="mobileHelpBtn">快捷键</button>
   </div>
 </div>
 
@@ -2111,6 +2111,19 @@ function closeSidebar() {
   $('#sidebar').classList.remove('open');
   $('#sidebarOverlay').style.display = 'none';
 }
+$('#modeTrigger').onclick = (e) => {
+  e.stopPropagation();
+  const dd = $('#modeDropdown');
+  const isOpen = dd.classList.toggle('show');
+  $('#modeTrigger').classList.toggle('open', isOpen);
+};
+document.addEventListener('click', (e) => {
+  if (!$('#modeDropdown').contains(e.target) && !$('#modeTrigger').contains(e.target)) {
+    $('#modeDropdown').classList.remove('show');
+    $('#modeTrigger').classList.remove('open');
+  }
+});
+
 $('#hamburgerBtn').onclick = () => {
   const sb = $('#sidebar');
   const opening = !sb.classList.contains('open');

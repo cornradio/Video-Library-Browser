@@ -1443,6 +1443,9 @@ app.get('/api/convert/search', (req, res) => {
           try { size = fs.statSync(full).size; } catch {}
           results.push({ name: e.name, path: full, size });
         }
+        if (type === 'subtitle' && e.isFile() && ['.srt','.ass','.ssa','.vtt'].includes(path.extname(e.name).toLowerCase()) && e.name.toLowerCase().includes(q)) {
+          results.push({ name: e.name, path: full });
+        }
         if (e.isDirectory()) walk(full);
       }
     } catch {}
@@ -1513,8 +1516,21 @@ app.get('/api/convert/merge-sub', (req, res) => {
   });
   proc.on('close', code => {
     if (code === 0 && fs.existsSync(tmpOut) && fs.statSync(tmpOut).size > 0) {
-      // Atomic replace
-      try { fs.unlinkSync(videoPath); fs.renameSync(tmpOut, videoPath); } catch {}
+      // Safe 3-step rename: backup original → move new → delete backup
+      const bakPath = videoPath + '.bak';
+      try {
+        if (fs.existsSync(bakPath)) fs.unlinkSync(bakPath);
+        fs.renameSync(videoPath, bakPath);
+        fs.renameSync(tmpOut, videoPath);
+        fs.unlinkSync(bakPath);
+      } catch (renameErr) {
+        // Try to restore from backup
+        try { if (fs.existsSync(bakPath) && !fs.existsSync(videoPath)) fs.renameSync(bakPath, videoPath); } catch {}
+        try { if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut); } catch {}
+        send({ type: 'error', msg: '合并成功但替换原文件失败: ' + renameErr.message });
+        res.end();
+        return;
+      }
       send({ type: 'done', output: videoPath });
     } else {
       try { fs.unlinkSync(tmpOut); } catch {}
@@ -1566,7 +1582,17 @@ app.get('/api/convert/single', (req, res) => {
     proc.on('close', code => {
       if (code === 0 && fs.existsSync(outFile) && fs.statSync(outFile).size > 0) {
         if (isMp4) {
-          try { fs.unlinkSync(filePath); fs.renameSync(outFile, filePath); } catch {}
+          const bak = filePath + '.bak';
+          try {
+            if (fs.existsSync(bak)) fs.unlinkSync(bak);
+            fs.renameSync(filePath, bak);
+            fs.renameSync(outFile, filePath);
+            fs.unlinkSync(bak);
+          } catch (e) {
+            console.warn('[convert/single] rename failed, original preserved:', e.message);
+            try { if (fs.existsSync(bak) && !fs.existsSync(filePath)) fs.renameSync(bak, filePath); } catch {}
+            try { if (fs.existsSync(outFile)) fs.unlinkSync(outFile); } catch {}
+          }
         }
         send({ type: 'done', output: isMp4 ? filePath : outFile });
       } else {
@@ -1632,7 +1658,19 @@ app.get('/api/convert/folder', (req, res) => {
     });
     proc.on('close', code => {
       if (code === 0 && fs.existsSync(outFile) && fs.statSync(outFile).size > 0) {
-        if (isMp4) { try { fs.unlinkSync(fp); fs.renameSync(outFile, fp); } catch {} }
+        if (isMp4) {
+          const bak = fp + '.bak';
+          try {
+            if (fs.existsSync(bak)) fs.unlinkSync(bak);
+            fs.renameSync(fp, bak);
+            fs.renameSync(outFile, fp);
+            fs.unlinkSync(bak);
+          } catch (e) {
+            console.warn('[convert/folder] rename failed, original preserved:', e.message);
+            try { if (fs.existsSync(bak) && !fs.existsSync(fp)) fs.renameSync(bak, fp); } catch {}
+            try { if (fs.existsSync(outFile)) fs.unlinkSync(outFile); } catch {}
+          }
+        }
         send({ type: 'file-done', index: idx + 1, total: videos.length, name: path.basename(fp) });
       } else {
         try { fs.unlinkSync(outFile); } catch {}
