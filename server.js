@@ -398,11 +398,11 @@ app.get('/api/local/directory', (req, res) => {
       for (const e of entries) {
         if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
           const fp = path.join(dir, e.name);
-          let size = 0;
-          try { size = fs.statSync(fp).size; } catch {}
+          let size = 0, birthtime = 0;
+          try { const st = fs.statSync(fp); size = st.size; birthtime = st.birthtimeMs || st.mtimeMs; } catch {}
           const mHash = require('crypto').createHash('md5').update(fp).digest('hex');
           const hasManualCover = fs.existsSync(path.join(LOCAL_THUMB_DIR, mHash + '.manual.jpg'));
-          videos.push({ name: e.name, path: fp, size, hasManualCover });
+          videos.push({ name: e.name, path: fp, size, birthtime, hasManualCover });
         } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
           subtitleFiles.push(e.name);
         } else if (e.isDirectory()) {
@@ -445,11 +445,11 @@ app.get('/api/local/scan-folder', (req, res) => {
     for (const e of entries) {
       if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
         const fp = path.join(dirPath, e.name);
-        let size = 0;
-        try { size = fs.statSync(fp).size; } catch {}
+        let size = 0, birthtime = 0;
+        try { const st = fs.statSync(fp); size = st.size; birthtime = st.birthtimeMs || st.mtimeMs; } catch {}
         const mHash = require('crypto').createHash('md5').update(fp).digest('hex');
         const hasManualCover = fs.existsSync(path.join(LOCAL_THUMB_DIR, mHash + '.manual.jpg'));
-        videos.push({ name: e.name, path: fp, size, hasManualCover });
+        videos.push({ name: e.name, path: fp, size, birthtime, hasManualCover });
       } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
         subtitleFiles.push(e.name);
       } else if (e.isDirectory()) {

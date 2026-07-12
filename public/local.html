@@ -208,6 +208,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .mode-dropdown a.active{color:var(--accent);font-weight:600}
 .mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
 
+/* ── Sort dropdown ── */
+.sort-wrap{position:relative}
+.sort-btn{background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;transition:background .15s;font-family:inherit}
+.sort-btn:hover{background:var(--card);color:var(--text)}
+.sort-drop{display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:60;white-space:nowrap}
+.sort-drop.show{display:block}
+.sort-drop button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text2);padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .1s}
+.sort-drop button:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.sort-drop button.active{color:var(--accent);font-weight:600}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
@@ -263,6 +273,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
   </div>
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
+  <div class="sort-wrap">
+    <button class="sort-btn" id="sortBtn">&#8597; 排序</button>
+    <div class="sort-drop" id="sortDrop">
+      <button data-sort="name_asc" class="active">名称 A → Z</button>
+      <button data-sort="name_desc">名称 Z → A</button>
+      <button data-sort="time_desc">时间 新→旧</button>
+      <button data-sort="time_asc">时间 旧→新</button>
+    </div>
+  </div>
   <div style="flex:1"></div>
   <a href="/converter.html" class="converter-btn" title="超级转换器"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></a>
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
@@ -428,6 +447,7 @@ const S = {
   expanded: new Set(), selPath: null,
   navFiles: [], navIdx: -1, blobUrls: [], scrollPos: 0,
   currentFolderPath: null,
+  sortBy: 'name_asc'
 
 };
 
@@ -557,9 +577,11 @@ function renderSavedFolders(saved) {
     const saved = await idbGetAll();
     if (Object.keys(saved).length) {
       renderSavedFolders(saved);
-      // Check for video URL param to auto-open
-      const videoParam = new URLSearchParams(location.search).get('video');
-      if (videoParam) {
+      const urlP = new URLSearchParams(location.search);
+      const folderParam = urlP.get('folder');
+      const videoParam = urlP.get('video');
+      // Auto-navigate to folder or video from URL
+      if (folderParam || videoParam) {
         // Try to load the most recent saved folder
         const handles = Object.values(saved);
         if (handles.length > 0) {
@@ -568,9 +590,28 @@ function renderSavedFolders(saved) {
             const perm = await handle.queryPermission({ mode: 'readwrite' });
             if (perm === 'granted') {
               await loadFolder(handle);
-              const allVids = getAllVideos(S.tree);
-              const target = allVids.find(v => v.relPath === videoParam);
-              if (target) openDetail(target);
+              if (videoParam) {
+                const allVids = getAllVideos(S.tree);
+                const target = allVids.find(v => v.relPath === videoParam);
+                if (target) openDetail(target);
+              } else if (folderParam) {
+                const folder = findFolder(S.tree, folderParam);
+                if (folder) {
+                  // Expand ancestor folders in sidebar
+                  S.expanded.add(S.tree.relPath);
+                  function expandAnc(node, target) {
+                    if (node === target) return true;
+                    for (const f of node.folders) {
+                      if (expandAnc(f, target)) { S.expanded.add(f.relPath); return true; }
+                    }
+                    return false;
+                  }
+                  expandAnc(S.tree, folder);
+                  S.selPath = folder.relPath;
+                  renderTree();
+                  showVideosForFolder(folder.relPath);
+                }
+              }
             }
           } catch {}
         }
@@ -605,9 +646,9 @@ async function refreshLocalFolder(folderPath, showToast = true) {
       if (entryHandle.kind === 'file') {
         const ext = entryName.slice(entryName.lastIndexOf('.')).toLowerCase();
         if (VIDEO_EXTS.has(ext)) {
-          let size = 0;
-          try { size = (await entryHandle.getFile()).size; } catch {}
-          newVideos.push({ name: entryName, handle: entryHandle, relPath: childRel, size });
+          let size = 0, birthtime = 0;
+          try { const f = await entryHandle.getFile(); size = f.size; birthtime = f.lastModified || 0; } catch {}
+          newVideos.push({ name: entryName, handle: entryHandle, relPath: childRel, size, birthtime });
         } else if (['.srt', '.ass', '.ssa', '.vtt'].includes(ext)) {
           subtitleFiles.push({ name: entryName, handle: entryHandle, relPath: childRel });
         }
@@ -701,9 +742,9 @@ async function walkDir(handle, name, relPath) {
       if (entryName === '.TThumb.PNG') { hasThumb = true; continue; }
       const ext = entryName.slice(entryName.lastIndexOf('.')).toLowerCase();
       if (VIDEO_EXTS.has(ext)) {
-        let size = 0;
-        try { size = (await entryHandle.getFile()).size; } catch {}
-        videos.push({ name: entryName, handle: entryHandle, relPath: childRel, size });
+        let size = 0, birthtime = 0;
+        try { const f = await entryHandle.getFile(); size = f.size; birthtime = f.lastModified || 0; } catch {}
+        videos.push({ name: entryName, handle: entryHandle, relPath: childRel, size, birthtime });
       } else if (['.srt', '.ass', '.ssa', '.vtt'].includes(ext)) {
         subtitleFiles.push({ name: entryName, handle: entryHandle, relPath: childRel });
       }
@@ -888,7 +929,20 @@ async function showVideosForFolder(folderPath) {
     } catch {}
   }
   const videos = getAllVideos(folder);
+  sortVideos(videos);
   S.navFiles = videos;
+
+  // Update URL to reflect current folder
+  const urlParams = new URLSearchParams(location.search);
+  const rootPath = S.tree ? S.tree.relPath : '';
+  if (folderPath && folderPath !== rootPath) {
+    urlParams.set('folder', folderPath);
+  } else {
+    urlParams.delete('folder');
+  }
+  urlParams.delete('video');
+  const qs = urlParams.toString();
+  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
 
   $('#listView').style.display = '';
   $('#detailView').style.display = 'none';
@@ -2123,6 +2177,43 @@ document.addEventListener('click', (e) => {
     $('#modeTrigger').classList.remove('open');
   }
 });
+
+// ── Sort dropdown ──
+$('#sortBtn').onclick = (e) => {
+  e.stopPropagation();
+  $('#sortDrop').classList.toggle('show');
+};
+document.addEventListener('click', (e) => {
+  if (!$('#sortDrop').contains(e.target) && !$('#sortBtn').contains(e.target)) {
+    $('#sortDrop').classList.remove('show');
+  }
+});
+$('#sortDrop').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sort]');
+  if (!btn) return;
+  S.sortBy = btn.dataset.sort;
+  $('#sortDrop').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  $('#sortDrop').classList.remove('show');
+  if (S.currentFolderPath) showVideosForFolder(S.currentFolderPath);
+});
+
+function sortVideos(arr) {
+  switch (S.sortBy) {
+    case 'name_asc':
+      arr.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+      break;
+    case 'name_desc':
+      arr.sort((a, b) => b.name.localeCompare(a.name, 'zh'));
+      break;
+    case 'time_asc':
+      arr.sort((a, b) => (a.birthtime || 0) - (b.birthtime || 0));
+      break;
+    case 'time_desc':
+      arr.sort((a, b) => (b.birthtime || 0) - (a.birthtime || 0));
+      break;
+  }
+}
 
 $('#hamburgerBtn').onclick = () => {
   const sb = $('#sidebar');

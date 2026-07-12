@@ -228,6 +228,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .mode-dropdown a.active{color:var(--accent);font-weight:600}
 .mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
 
+/* ── Sort dropdown ── */
+.sort-wrap{position:relative}
+.sort-btn{background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;transition:background .15s;font-family:inherit}
+.sort-btn:hover{background:var(--card);color:var(--text)}
+.sort-drop{display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:60;white-space:nowrap}
+.sort-drop.show{display:block}
+.sort-drop button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text2);padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .1s}
+.sort-drop button:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.sort-drop button.active{color:var(--accent);font-weight:600}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
@@ -283,6 +293,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
   </div>
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
+  <div class="sort-wrap">
+    <button class="sort-btn" id="sortBtn">&#8597; 排序</button>
+    <div class="sort-drop" id="sortDrop">
+      <button data-sort="name_asc" class="active">名称 A → Z</button>
+      <button data-sort="name_desc">名称 Z → A</button>
+      <button data-sort="time_desc">时间 新→旧</button>
+      <button data-sort="time_asc">时间 旧→新</button>
+    </div>
+  </div>
   <div style="flex:1"></div>
   <button class="upload-icon-btn" id="uploadBtn" title="上传视频"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
   <input type="file" id="uploadInput" multiple accept="video/*" style="display:none">
@@ -482,6 +501,7 @@ const S = {
   lastBrowsePath: null,
   currentFolderPath: null,
   currentThumbTime: 1,
+  sortBy: 'name_asc',
 
 };
 
@@ -512,6 +532,43 @@ document.addEventListener('click', (e) => {
     $('#modeTrigger').classList.remove('open');
   }
 });
+
+// ── Sort dropdown ──
+$('#sortBtn').onclick = (e) => {
+  e.stopPropagation();
+  $('#sortDrop').classList.toggle('show');
+};
+document.addEventListener('click', (e) => {
+  if (!$('#sortDrop').contains(e.target) && !$('#sortBtn').contains(e.target)) {
+    $('#sortDrop').classList.remove('show');
+  }
+});
+$('#sortDrop').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sort]');
+  if (!btn) return;
+  S.sortBy = btn.dataset.sort;
+  $('#sortDrop').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  $('#sortDrop').classList.remove('show');
+  if (S.currentFolderPath) showVideosForFolder(S.currentFolderPath);
+});
+
+function sortVideos(arr) {
+  switch (S.sortBy) {
+    case 'name_asc':
+      arr.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+      break;
+    case 'name_desc':
+      arr.sort((a, b) => b.name.localeCompare(a.name, 'zh'));
+      break;
+    case 'time_asc':
+      arr.sort((a, b) => (a.birthtime || 0) - (b.birthtime || 0));
+      break;
+    case 'time_desc':
+      arr.sort((a, b) => (b.birthtime || 0) - (a.birthtime || 0));
+      break;
+  }
+}
 
 // ── Browse ──
 const savedPath = localStorage.getItem('serverViewerPath') || '';
@@ -641,23 +698,53 @@ async function loadWhitelist() {
   }
 }
 
-// Auto-open saved path on load, with optional video detail from URL
+// Auto-open saved path on load, with optional folder/video detail from URL
 (async () => {
   await loadWhitelist();
 
-  // If whitelist exists, validate saved path
-  if (whitelistDirs.length > 0 && savedPath) {
-    const allowed = whitelistDirs.some(d => savedPath === d || savedPath.startsWith(d + '/') || savedPath.startsWith(d + '\\'));
+  const urlP = new URLSearchParams(location.search);
+  const urlPath = urlP.get('path') || '';
+  const urlFolder = urlP.get('folder') || '';
+  const videoParam = urlP.get('video') || '';
+  const effectivePath = urlPath || savedPath;
+
+  // If whitelist exists, validate effective path
+  if (whitelistDirs.length > 0 && effectivePath) {
+    const allowed = whitelistDirs.some(d => effectivePath === d || effectivePath.startsWith(d + '/') || effectivePath.startsWith(d + '\\'));
     if (!allowed) {
-      // Saved path not in whitelist, show whitelist selector instead
       $('#whitelistSelect').style.display = 'block';
       return;
     }
   }
 
-  if (savedPath) {
-    await browse(savedPath);
-    const videoParam = new URLSearchParams(location.search).get('video');
+  if (effectivePath) {
+    $('#pathInput').value = effectivePath;
+    await browse(effectivePath);
+
+    // Restore folder from URL if present
+    if (urlFolder && S.tree) {
+      const folder = findFolder(S.tree, urlFolder);
+      if (folder) {
+        // Expand all ancestor folders in sidebar
+        S.expanded.add(S.tree.path);
+        function expandAncestors(node, target) {
+          if (node === target) return true;
+          for (const f of node.folders) {
+            if (expandAncestors(f, target)) {
+              S.expanded.add(f.path);
+              return true;
+            }
+          }
+          return false;
+        }
+        expandAncestors(S.tree, folder);
+        S.selPath = folder.path;
+        renderTree();
+        showVideosForFolder(folder.path);
+      }
+    }
+
+    // Restore video detail from URL if present
     if (videoParam && S.tree) {
       // Find which folder contains this video and expand sidebar to it
       const folder = findVideoFolder(videoParam);
@@ -833,7 +920,21 @@ function showVideosForFolder(folderPath) {
   const folder = findFolder(S.tree, folderPath);
   if (!folder) return;
   const videos = getAllVideos(folder);
+  sortVideos(videos);
   S.navFiles = videos;
+
+  // Update URL to reflect current folder
+  const urlParams = new URLSearchParams(location.search);
+  const rootPath = S.tree ? S.tree.path : '';
+  if (folderPath && folderPath !== rootPath) {
+    urlParams.set('folder', folderPath);
+  } else {
+    urlParams.delete('folder');
+  }
+  if (rootPath) urlParams.set('path', rootPath);
+  urlParams.delete('video');
+  const qs = urlParams.toString();
+  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
 
   $('#listView').style.display = '';
   $('#detailView').style.display = 'none';
@@ -1068,6 +1169,7 @@ function filterGrid(query) {
   const folder = findFolder(S.tree, S.lastBrowsePath);
   if (!folder) return;
   const all = getAllVideos(folder);
+  sortVideos(all);
   const q = query.trim().toLowerCase();
   const videos = q ? all.filter(f => f.name.toLowerCase().includes(q)) : all;
   S.navFiles = videos;
