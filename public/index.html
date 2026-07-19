@@ -187,6 +187,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
 .help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
 .help-shortcut span{color:var(--text2)}
+	.fs-delay-input{width:50px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;font-family:monospace;text-align:center;outline:none}
+	.fs-delay-input:focus{border-color:var(--accent)}
+	.fs-delay-unit{font-size:11px;color:var(--text3)}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -239,6 +242,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>F</kbd><span>全屏播放</span></div>
         <div class="help-shortcut"><kbd>Z</kbd><span>收藏/取消收藏</span></div>
         <div class="help-shortcut"><kbd>Esc</kbd><span>返回列表</span></div>
+      </div>
+    </div>
+    <div class="help-section">
+      <div class="help-title">设置</div>
+      <div class="help-shortcuts">
+        <div class="help-shortcut">
+          <span>全屏控件隐藏</span>
+          <input type="number" id="fsHideDelayInput" class="fs-delay-input" value="2.5" min="0" max="30" step="0.5">
+          <span class="fs-delay-unit">秒 (0=不隐藏)</span>
+        </div>
       </div>
     </div>
   </div>
@@ -860,6 +873,52 @@ document.addEventListener('keydown', e => {
     if (e.key === 'b' || e.key === 'B') $('#markEndBtn').click();
   }
 });
+
+// ── Fullscreen controls auto-hide ──
+function _fsGetDelay() {
+  const v = parseFloat(localStorage.getItem('fsHideDelay'));
+  return isNaN(v) ? 2500 : Math.max(0, v * 1000);
+}
+let _fsHideTimer = null;
+function _fsShowControls() {
+  clearTimeout(_fsHideTimer);
+  const v = $('#detailVideo');
+  if (v && !v.hasAttribute('controls')) v.setAttribute('controls', '');
+  const delay = _fsGetDelay();
+  if (document.fullscreenElement && delay > 0) {
+    _fsHideTimer = setTimeout(() => {
+      const ve = $('#detailVideo');
+      if (ve) ve.removeAttribute('controls');
+    }, delay);
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  const v = $('#detailVideo');
+  if (!v) return;
+  if (document.fullscreenElement) {
+    _fsShowControls();
+    document.addEventListener('mousemove', _fsShowControls);
+    document.addEventListener('touchstart', _fsShowControls);
+  } else {
+    clearTimeout(_fsHideTimer);
+    _fsHideTimer = null;
+    v.setAttribute('controls', '');
+    document.removeEventListener('mousemove', _fsShowControls);
+    document.removeEventListener('touchstart', _fsShowControls);
+  }
+});
+// Sync settings UI with localStorage
+(function() {
+  const input = $('#fsHideDelayInput');
+  if (!input) return;
+  const saved = localStorage.getItem('fsHideDelay');
+  if (saved !== null) input.value = saved;
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    if (isNaN(v) || v < 0) return;
+    localStorage.setItem('fsHideDelay', String(v));
+  });
+})();
 
 function renderClips() {
   const list = $('#clipList');

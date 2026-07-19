@@ -169,6 +169,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
 .help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
 .help-shortcut span{color:var(--text2)}
+.fs-delay-input{width:50px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;font-family:monospace;text-align:center;outline:none}
+.fs-delay-input:focus{border-color:var(--accent)}
+.fs-delay-unit{font-size:11px;color:var(--text3)}
 .history-panel{display:none;position:fixed;top:52px;right:60px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;width:380px;max-height:480px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .history-panel.show{display:block}
 .history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -330,6 +333,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>B</kbd><span>标记终点 (片段面板开启时)</span></div>
         <div class="help-shortcut"><kbd>Esc</kbd><span>返回列表</span></div>
         <div class="help-shortcut"><kbd>F4</kbd><span>转换视频 (任意视频)</span></div>
+      </div>
+    </div>
+    <div class="help-section">
+      <div class="help-title">设置</div>
+      <div class="help-shortcuts">
+        <div class="help-shortcut">
+          <span>全屏控件隐藏</span>
+          <input type="number" id="fsHideDelayInput" class="fs-delay-input" value="2.5" min="0" max="30" step="0.5">
+          <span class="fs-delay-unit">秒 (0=不隐藏)</span>
+        </div>
       </div>
     </div>
   </div>
@@ -972,7 +985,7 @@ function showVideosForFolder(folderPath) {
 
   const grid = $('#grid');
   if (!videos.length) {
-    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有视频</div></div>';
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有媒体文件</div></div>';
     return;
   }
   grid.innerHTML = '';
@@ -1099,19 +1112,21 @@ function populateCard(card, f) {
     ? `/api/local/thumbnail?path=${encodeURIComponent(f.path)}&cover=manual&_=${Date.now()}`
     : `/api/local/thumbnail?path=${encodeURIComponent(f.path)}&t=${S.currentThumbTime}`;
 
+  const isImage = f.type === 'image';
+  const badge = isImage ? 'IMG' : ext;
   card.innerHTML = `
     <div class="card-media">
       <img src="${imgSrc}" loading="lazy" fetchpriority="low" data-src="${imgSrc}" onerror="this.style.display='none';this.parentNode.querySelector('.card-thumb-fail').style.display='flex'" style="background:#111">
       <div class="card-thumb-fail" style="display:none">&#9655;</div>
-      <video muted loop preload="none" playsinline></video>
-      <span style="position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:rgba(0,0,0,.7);color:var(--text2)">${ext}</span>
+      ${isImage ? '' : '<video muted loop preload="none" playsinline></video>'}
+      <span style="position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:rgba(0,0,0,.7);color:var(--text2)">${badge}</span>
       <button class="card-reveal-btn" title="在资源管理器中查看" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.6);border:none;color:var(--text2);border-radius:4px;padding:3px 6px;font-size:13px;cursor:pointer;line-height:1;opacity:0;transition:opacity .15s">&#128193;</button>
     </div>
     <div class="card-info">
       <div class="card-name" title="${f.name}">${f.name}</div>
       <div class="card-meta">${f.size ? `<span>${formatSize(f.size)}</span>` : ''}</div>
       ${tagsHtml}
-      <div class="card-clip-count" data-path="${fid}"></div>
+      ${isImage ? '' : `<div class="card-clip-count" data-path="${fid}"></div>`}
     </div>`;
 
   // Reveal in Explorer button
@@ -1148,7 +1163,7 @@ function populateCard(card, f) {
     };
   });
 
-  setupHover(card, f);
+  if (!isImage) setupHover(card, f);
   setupCardDrag(card, f);
   card.onclick = (e) => {
     if (e.ctrlKey || e.metaKey) {
@@ -1176,7 +1191,7 @@ function filterGrid(query) {
 
   const grid = $('#grid');
   if (!videos.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">${q ? '没有匹配的文件' : '此文件夹没有视频'}</div></div>`;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">${q ? '没有匹配的文件' : '此文件夹没有媒体文件'}</div></div>`;
     return;
   }
   grid.innerHTML = '';
@@ -1382,6 +1397,7 @@ function updateSubtitle(time) {
 
 // ── Detail ──
 function openDetail(file, noPush) {
+  const isImage = file.type === 'image';
   S.curFile = file;
   S.playingClipId = null;
   stopPreview();
@@ -1409,16 +1425,35 @@ function openDetail(file, noPush) {
   updateNavButtons();
 
   const v = $('#video');
-  v.style.display = '';
-  v.style.opacity = '0';
-  v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
-  v.load();
-  v.play().catch(() => {});
-  v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
-
-  // Drag handle: resize video container vertically (persisted)
+  let detailImg = $('#detailImage');
   const vbox = $('#detailVideoBox');
   const handle = $('#videoResizeHandle');
+
+  if (isImage) {
+    v.style.display = 'none';
+    v.pause(); v.src = '';
+    if (vbox) { vbox.style.height = 'auto'; vbox.style.overflow = 'visible'; }
+    if (!detailImg) {
+      detailImg = document.createElement('img');
+      detailImg.id = 'detailImage';
+      detailImg.style.cssText = 'width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;border-radius:8px';
+      vbox.appendChild(detailImg);
+    }
+    detailImg.style.display = '';
+    detailImg.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
+  } else {
+    v.style.display = '';
+    v.style.opacity = '0';
+    handle.style.display = '';
+    if (vbox) { vbox.style.overflow = ''; }
+    if (detailImg) detailImg.style.display = 'none';
+    v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
+    v.load();
+    v.play().catch(() => {});
+    v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
+  }
+
+  // Drag handle: resize container vertically (persisted) — works for both video & image
   if (vbox) {
     var savedH = localStorage.getItem('detail_video_height');
     vbox.style.height = savedH ? savedH + 'px' : '50vh';
@@ -1457,80 +1492,87 @@ function openDetail(file, noPush) {
     }
   }
 
-  v.ontimeupdate = () => {
-    if (S.playingClipId) {
-      const clip = S.clips.find(c => c.id === S.playingClipId);
-      if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
-    }
-    if (_subtitleCues.length) updateSubtitle(v.currentTime);
-  };
-
-  // Subtitle panel
-  _subtitleCues = [];
-  _subtitleFileList = file.subtitles || [];
-  const panel = $('#subtitlePanel');
-  const selWrap = $('#subtitleSelect');
-  const selEl = $('#subtitleSelectEl');
-  if (_subtitleFileList.length) {
-    panel.classList.add('show');
-    selWrap.style.display = 'flex';
-    if (_subtitleFileList.length > 1) {
-      selEl.style.display = '';
-      selEl.innerHTML = _subtitleFileList.map((s, i) => `<option value="${i}">${s.name}</option>`).join('');
-      selEl.onchange = () => loadSubtitle(_subtitleFileList[selEl.value].path);
-    } else {
-      selEl.style.display = 'none';
-    }
-    loadSubtitle(_subtitleFileList[0].path);
-  } else {
-    panel.classList.remove('show');
-    selWrap.style.display = 'none';
-  }
-
-  // Subtitle download button
-  $('#subtitleDownloadBtn').onclick = () => {
-    if (!_subtitleFileList.length) return;
-    const idx = selEl.value || 0;
-    const sub = _subtitleFileList[idx];
-    const a = document.createElement('a');
-    a.href = '/api/local/subtitle?path=' + encodeURIComponent(sub.path);
-    a.download = sub.name;
-    a.click();
-  };
-
-  // Audio track detection and switching
-  const audioSelectWrap = $('#audioTrackSelect');
-  const audioSelectEl = $('#audioTrackSelectEl');
-  audioSelectWrap.style.display = 'none';
-  v.onloadedmetadata = () => {
-    const tracks = v.audioTracks;
-    if (tracks && tracks.length > 1) {
-      audioSelectWrap.style.display = 'inline-flex';
-      panel.classList.add('show');
-      audioSelectEl.innerHTML = '';
-      for (let i = 0; i < tracks.length; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = tracks[i].label || tracks[i].language || ('音轨 ' + (i + 1));
-        if (tracks[i].enabled) opt.selected = true;
-        audioSelectEl.appendChild(opt);
+  // Subtitle & audio: video only
+  if (!isImage) {
+    v.ontimeupdate = () => {
+      if (S.playingClipId) {
+        const clip = S.clips.find(c => c.id === S.playingClipId);
+        if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
       }
-      audioSelectEl.onchange = () => {
-        const idx = +audioSelectEl.value;
-        for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
-      };
-    } else {
-      audioSelectWrap.style.display = 'none';
-    }
-  };
+      if (_subtitleCues.length) updateSubtitle(v.currentTime);
+    };
 
-  // Convert: probe data for quality panel (used by right-click menu)
-  window._currentFile = file;
-  window._probeData = null;
-  fetch('/api/local/probe?filePath=' + encodeURIComponent(file.path))
-    .then(r => r.json())
-    .then(data => { window._probeData = data; })
-    .catch(() => {});
+    // Subtitle panel
+    _subtitleCues = [];
+    _subtitleFileList = file.subtitles || [];
+    const panel = $('#subtitlePanel');
+    const selWrap = $('#subtitleSelect');
+    const selEl = $('#subtitleSelectEl');
+    if (_subtitleFileList.length) {
+      panel.classList.add('show');
+      selWrap.style.display = 'flex';
+      if (_subtitleFileList.length > 1) {
+        selEl.style.display = '';
+        selEl.innerHTML = _subtitleFileList.map((s, i) => `<option value="${i}">${s.name}</option>`).join('');
+        selEl.onchange = () => loadSubtitle(_subtitleFileList[selEl.value].path);
+      } else {
+        selEl.style.display = 'none';
+      }
+      loadSubtitle(_subtitleFileList[0].path);
+    } else {
+      panel.classList.remove('show');
+      selWrap.style.display = 'none';
+    }
+
+    // Subtitle download button
+    $('#subtitleDownloadBtn').onclick = () => {
+      if (!_subtitleFileList.length) return;
+      const idx = selEl.value || 0;
+      const sub = _subtitleFileList[idx];
+      const a = document.createElement('a');
+      a.href = '/api/local/subtitle?path=' + encodeURIComponent(sub.path);
+      a.download = sub.name;
+      a.click();
+    };
+
+    // Audio track detection and switching
+    const audioSelectWrap = $('#audioTrackSelect');
+    const audioSelectEl = $('#audioTrackSelectEl');
+    audioSelectWrap.style.display = 'none';
+    v.onloadedmetadata = () => {
+      const tracks = v.audioTracks;
+      if (tracks && tracks.length > 1) {
+        audioSelectWrap.style.display = 'inline-flex';
+        panel.classList.add('show');
+        audioSelectEl.innerHTML = '';
+        for (let i = 0; i < tracks.length; i++) {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = tracks[i].label || tracks[i].language || ('音轨 ' + (i + 1));
+          if (tracks[i].enabled) opt.selected = true;
+          audioSelectEl.appendChild(opt);
+        }
+        audioSelectEl.onchange = () => {
+          const idx = +audioSelectEl.value;
+          for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
+        };
+      } else {
+        audioSelectWrap.style.display = 'none';
+      }
+    };
+
+    // Convert: probe data for quality panel (used by right-click menu)
+    window._currentFile = file;
+    window._probeData = null;
+    fetch('/api/local/probe?filePath=' + encodeURIComponent(file.path))
+      .then(r => r.json())
+      .then(data => { window._probeData = data; })
+      .catch(() => {});
+  } else {
+    $('#subtitlePanel').classList.remove('show');
+    $('#subtitleSelect').style.display = 'none';
+    $('#audioTrackSelect').style.display = 'none';
+  }
 
   $('#detailNameText').textContent = file.name;
   setupDetailDrag($('#detailDragIcon'), () => S.curFile);
@@ -1568,9 +1610,16 @@ function openDetail(file, noPush) {
       }
     };
   });
-  $('#clipAddPanel').style.display = 'none';
-  resetClipForm();
-  loadClips();
+  // Clips: video only
+  if (!isImage) {
+    $('#clipAddPanel').style.display = 'none';
+    resetClipForm();
+    loadClips();
+  } else {
+    $('#clipAddPanel').style.display = 'none';
+    const clipsSection = document.querySelector('.clips-section');
+    if (clipsSection) clipsSection.style.display = 'none';
+  }
 }
 
 function updateNavButtons() {
@@ -1584,6 +1633,10 @@ function updateNavButtons() {
 function showList() {
   const v = $('#video');
   v.pause(); v.src = ''; v.controls = true; v.style.display = 'none';
+  const detailImg = $('#detailImage');
+  if (detailImg) { detailImg.src = ''; detailImg.style.display = 'none'; }
+  const clipsSection = document.querySelector('.clips-section');
+  if (clipsSection) clipsSection.style.display = '';
   stopPreview();
   S.playingClipId = null;
   S.curFile = null;
@@ -2197,6 +2250,52 @@ document.addEventListener('keydown', e => {
     if (e.key === 'b' || e.key === 'B') $('#markEndBtn').click();
   }
 });
+
+// ── Fullscreen controls auto-hide ──
+function _fsGetDelay() {
+  const v = parseFloat(localStorage.getItem('fsHideDelay'));
+  return isNaN(v) ? 2500 : Math.max(0, v * 1000);
+}
+let _fsHideTimer = null;
+function _fsShowControls() {
+  clearTimeout(_fsHideTimer);
+  const v = $('#video');
+  if (v && !v.hasAttribute('controls')) v.setAttribute('controls', '');
+  const delay = _fsGetDelay();
+  if (document.fullscreenElement && delay > 0) {
+    _fsHideTimer = setTimeout(() => {
+      const ve = $('#video');
+      if (ve) ve.removeAttribute('controls');
+    }, delay);
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  const v = $('#video');
+  if (!v) return;
+  if (document.fullscreenElement) {
+    _fsShowControls();
+    document.addEventListener('mousemove', _fsShowControls);
+    document.addEventListener('touchstart', _fsShowControls);
+  } else {
+    clearTimeout(_fsHideTimer);
+    _fsHideTimer = null;
+    v.setAttribute('controls', '');
+    document.removeEventListener('mousemove', _fsShowControls);
+    document.removeEventListener('touchstart', _fsShowControls);
+  }
+});
+// Sync settings UI with localStorage
+(function() {
+  const input = $('#fsHideDelayInput');
+  if (!input) return;
+  const saved = localStorage.getItem('fsHideDelay');
+  if (saved !== null) input.value = saved;
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    if (isNaN(v) || v < 0) return;
+    localStorage.setItem('fsHideDelay', String(v));
+  });
+})();
 
 // ── Preview ──
 let previewActive = false;

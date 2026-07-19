@@ -374,6 +374,7 @@ function readLocalClips() { try { return JSON.parse(fs.readFileSync(LOCAL_CLIPS_
 function writeLocalClips(d) { fs.writeFileSync(LOCAL_CLIPS_FILE, JSON.stringify(d, null, 2)); }
 
 const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.m4v']);
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.svg', '.gif', '.avif', '.tiff', '.ico']);
 const SUBTITLE_EXTS = new Set(['.srt', '.ass', '.ssa', '.vtt']);
 
 // ── Whitelist API ──
@@ -396,14 +397,16 @@ app.get('/api/local/directory', (req, res) => {
       const folders = [];
       const subtitleFiles = [];
       for (const e of entries) {
-        if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
+        if (e.name === '.TThumb.PNG') continue;
+        const ext = path.extname(e.name).toLowerCase();
+        if (e.isFile() && (VIDEO_EXTS.has(ext) || IMAGE_EXTS.has(ext))) {
           const fp = path.join(dir, e.name);
           let size = 0, birthtime = 0;
           try { const st = fs.statSync(fp); size = st.size; birthtime = st.birthtimeMs || st.mtimeMs; } catch {}
           const mHash = require('crypto').createHash('md5').update(fp).digest('hex');
           const hasManualCover = fs.existsSync(path.join(LOCAL_THUMB_DIR, mHash + '.manual.jpg'));
-          videos.push({ name: e.name, path: fp, size, birthtime, hasManualCover });
-        } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
+          videos.push({ name: e.name, path: fp, size, birthtime, hasManualCover, type: IMAGE_EXTS.has(ext) ? 'image' : 'video' });
+        } else if (e.isFile() && SUBTITLE_EXTS.has(ext)) {
           subtitleFiles.push(e.name);
         } else if (e.isDirectory()) {
           folders.push(scan(path.join(dir, e.name)));
@@ -443,14 +446,16 @@ app.get('/api/local/scan-folder', (req, res) => {
     const folders = [];
     const subtitleFiles = [];
     for (const e of entries) {
-      if (e.isFile() && VIDEO_EXTS.has(path.extname(e.name).toLowerCase())) {
+      if (e.name === '.TThumb.PNG') continue;
+      const ext = path.extname(e.name).toLowerCase();
+      if (e.isFile() && (VIDEO_EXTS.has(ext) || IMAGE_EXTS.has(ext))) {
         const fp = path.join(dirPath, e.name);
         let size = 0, birthtime = 0;
         try { const st = fs.statSync(fp); size = st.size; birthtime = st.birthtimeMs || st.mtimeMs; } catch {}
         const mHash = require('crypto').createHash('md5').update(fp).digest('hex');
         const hasManualCover = fs.existsSync(path.join(LOCAL_THUMB_DIR, mHash + '.manual.jpg'));
-        videos.push({ name: e.name, path: fp, size, birthtime, hasManualCover });
-      } else if (e.isFile() && SUBTITLE_EXTS.has(path.extname(e.name).toLowerCase())) {
+        videos.push({ name: e.name, path: fp, size, birthtime, hasManualCover, type: IMAGE_EXTS.has(ext) ? 'image' : 'video' });
+      } else if (e.isFile() && SUBTITLE_EXTS.has(ext)) {
         subtitleFiles.push(e.name);
       } else if (e.isDirectory()) {
         const subPath = path.join(dirPath, e.name);

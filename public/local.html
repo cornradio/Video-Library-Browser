@@ -162,6 +162,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
 .help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
 .help-shortcut span{color:var(--text2)}
+.fs-delay-input{width:50px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;font-family:monospace;text-align:center;outline:none}
+.fs-delay-input:focus{border-color:var(--accent)}
+.fs-delay-unit{font-size:11px;color:var(--text3)}
 .history-panel{display:none;position:fixed;top:52px;right:60px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;width:380px;max-height:480px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .history-panel.show{display:block}
 .history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -311,6 +314,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>Esc</kbd><span>返回列表</span></div>
       </div>
     </div>
+    <div class="help-section">
+      <div class="help-title">设置</div>
+      <div class="help-shortcuts">
+        <div class="help-shortcut">
+          <span>全屏控件隐藏</span>
+          <input type="number" id="fsHideDelayInput" class="fs-delay-input" value="2.5" min="0" max="30" step="0.5">
+          <span class="fs-delay-unit">秒 (0=不隐藏)</span>
+        </div>
+      </div>
+    </div>
   </div>
   <button class="mobile-more-btn" id="mobileMoreBtn">&#8942;</button>
   <div class="mobile-more-menu" id="mobileMoreMenu">
@@ -440,6 +453,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 <script src="/shared.js"></script>
 <script>
 const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.avi','.mkv','.wmv','.m4v']);
+const IMAGE_EXTS = new Set(['.jpg','.jpeg','.png','.webp','.bmp','.svg','.gif','.avif','.tiff','.ico']);
 
 const S = {
   rootHandle: null, tree: null, parentHandles: {},
@@ -644,11 +658,12 @@ async function refreshLocalFolder(folderPath, showToast = true) {
       const childRel = folderPath ? folderPath + '/' + entryName : entryName;
       S.parentHandles[childRel] = dirHandle;
       if (entryHandle.kind === 'file') {
+        if (entryName === '.TThumb.PNG') continue;
         const ext = entryName.slice(entryName.lastIndexOf('.')).toLowerCase();
-        if (VIDEO_EXTS.has(ext)) {
+        if (VIDEO_EXTS.has(ext) || IMAGE_EXTS.has(ext)) {
           let size = 0, birthtime = 0;
           try { const f = await entryHandle.getFile(); size = f.size; birthtime = f.lastModified || 0; } catch {}
-          newVideos.push({ name: entryName, handle: entryHandle, relPath: childRel, size, birthtime });
+          newVideos.push({ name: entryName, handle: entryHandle, relPath: childRel, size, birthtime, type: IMAGE_EXTS.has(ext) ? "image" : "video" });
         } else if (['.srt', '.ass', '.ssa', '.vtt'].includes(ext)) {
           subtitleFiles.push({ name: entryName, handle: entryHandle, relPath: childRel });
         }
@@ -741,10 +756,10 @@ async function walkDir(handle, name, relPath) {
     if (entryHandle.kind === 'file') {
       if (entryName === '.TThumb.PNG') { hasThumb = true; continue; }
       const ext = entryName.slice(entryName.lastIndexOf('.')).toLowerCase();
-      if (VIDEO_EXTS.has(ext)) {
+      if (VIDEO_EXTS.has(ext) || IMAGE_EXTS.has(ext)) {
         let size = 0, birthtime = 0;
         try { const f = await entryHandle.getFile(); size = f.size; birthtime = f.lastModified || 0; } catch {}
-        videos.push({ name: entryName, handle: entryHandle, relPath: childRel, size, birthtime });
+        videos.push({ name: entryName, handle: entryHandle, relPath: childRel, size, birthtime, type: IMAGE_EXTS.has(ext) ? "image" : "video" });
       } else if (['.srt', '.ass', '.ssa', '.vtt'].includes(ext)) {
         subtitleFiles.push({ name: entryName, handle: entryHandle, relPath: childRel });
       }
@@ -762,9 +777,15 @@ async function walkDir(handle, name, relPath) {
 }
 
 // ── Thumbnails (canvas-based) ──
-async function generateThumbnail(fileHandle, timeSec) {
+async function generateThumbnail(fileHandle, timeSec, fileType) {
   try {
     const file = await fileHandle.getFile();
+    // For images, return the URL directly — no video frame extraction needed
+    if (fileType === 'image') {
+      const url = URL.createObjectURL(file);
+      S.blobUrls.push(url);
+      return url;
+    }
     return new Promise((resolve) => {
       const url = URL.createObjectURL(file);
     const v = document.createElement('video');
@@ -815,7 +836,7 @@ async function generateThumbnailsForGrid() {
   for (let i = 0; i < imgs.length; i++) {
     if (!files[i]) continue;
     if (!imgs[i].isConnected) continue;
-    const dataUrl = await generateThumbnail(files[i]);
+    const dataUrl = await generateThumbnail(files[i], null, imgs[i]._fileType);
     if (dataUrl && imgs[i].isConnected) imgs[i].src = dataUrl;
   }
 }
@@ -958,7 +979,7 @@ async function showVideosForFolder(folderPath) {
   const grid = $('#grid');
   $('#thumbControls').style.display = videos.length ? 'flex' : 'none';
   if (!videos.length) {
-    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有视频</div></div>';
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有媒体文件</div></div>';
     return;
   }
   grid.innerHTML = '';
@@ -1054,7 +1075,9 @@ function buildCard(f) {
   const d = document.createElement('div');
   d.className = 'card';
   d.dataset.path = f.relPath;
+  const isImage = f.type === 'image';
   const ext = f.name.split('.').pop().toUpperCase();
+  const badge = isImage ? 'IMG' : ext;
   const fid = f.relPath;
 
   // Tags relative to root folder — always consistent
@@ -1066,14 +1089,14 @@ function buildCard(f) {
   d.innerHTML = `
     <div class="card-media">
       <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" loading="lazy" onerror="this.style.display='none'" style="background:#111">
-      <video muted loop preload="none" playsinline></video>
-      <span style="position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:rgba(0,0,0,.7);color:var(--text2)">${ext}</span>
+      ${isImage ? '' : '<video muted loop preload="none" playsinline></video>'}
+      <span style="position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:rgba(0,0,0,.7);color:var(--text2)">${badge}</span>
     </div>
     <div class="card-info">
       <div class="card-name" title="${f.name}">${f.name}</div>
       <div class="card-meta">${f.size ? `<span>${formatSize(f.size)}</span>` : ''}</div>
       ${tagsHtml}
-      <div class="card-clip-count" data-path="${fid}"></div>
+      ${isImage ? '' : `<div class="card-clip-count" data-path="${fid}"></div>`}
     </div>`;
 
   // Tag click navigates to that folder in sidebar
@@ -1099,7 +1122,8 @@ function buildCard(f) {
 
   const img = d.querySelector('img');
   img._fileHandle = f.handle;
-  setupHover(d, f);
+  img._fileType = f.type || 'video';
+  if (!isImage) setupHover(d, f);
   setupCardDrag(d, f);
   d.onclick = (e) => {
     if (e.ctrlKey || e.metaKey) {
@@ -1204,6 +1228,7 @@ function updateSubtitle(time) {
 
 // ── Detail ──
 async function openDetail(file) {
+  const isImage = file.type === 'image';
   S.curFile = file;
   S.playingClipId = null;
   stopPreview();
@@ -1225,21 +1250,48 @@ async function openDetail(file) {
   updateNavButtons();
 
   const v = $('#video');
-  v.style.display = '';
-  v.style.opacity = '0';
-  try {
-    const f = await file.handle.getFile();
-    const url = URL.createObjectURL(f);
-    S.blobUrls.push(url);
-    v.src = url;
-    v.load();
-    v.play().catch(() => {});
-    v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
-  } catch (e) { toast('无法加载视频: ' + e.message); }
-
-  // Drag handle: resize video container vertically (persisted)
+  let detailImg = $('#detailImage');
   const vbox = $('#detailVideoBox');
   const handle = $('#videoResizeHandle');
+
+  if (isImage) {
+    // Hide video, show image
+    v.style.display = 'none';
+    v.pause(); v.src = '';
+    if (vbox) { vbox.style.height = 'auto'; vbox.style.overflow = 'visible'; }
+    // Create or show image element
+    if (!detailImg) {
+      detailImg = document.createElement('img');
+      detailImg.id = 'detailImage';
+      detailImg.style.cssText = 'width:100%;max-height:100%;object-fit:contain;display:block;margin:0 auto;border-radius:8px';
+      vbox.appendChild(detailImg);
+    }
+    detailImg.style.display = '';
+    try {
+      const f = await file.handle.getFile();
+      const url = URL.createObjectURL(f);
+      S.blobUrls.push(url);
+      detailImg.src = url;
+    } catch (e) { toast('无法加载图片: ' + e.message); }
+  } else {
+    // Video mode
+    v.style.display = '';
+    v.style.opacity = '0';
+    handle.style.display = '';
+    if (vbox) { vbox.style.overflow = ''; }
+    if (detailImg) detailImg.style.display = 'none';
+    try {
+      const f = await file.handle.getFile();
+      const url = URL.createObjectURL(f);
+      S.blobUrls.push(url);
+      v.src = url;
+      v.load();
+      v.play().catch(() => {});
+      v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
+    } catch (e) { toast('无法加载视频: ' + e.message); }
+  }
+
+  // Drag handle: resize container vertically (persisted) — works for both video & image
   if (vbox) {
     var savedH = localStorage.getItem('detail_video_height');
     vbox.style.height = savedH ? savedH + 'px' : '50vh';
@@ -1278,73 +1330,81 @@ async function openDetail(file) {
     }
   }
 
-  v.ontimeupdate = () => {
-    if (_subtitleCues.length) updateSubtitle(v.currentTime);
-  };
+  // Subtitle & audio tracks: video only
+  if (!isImage) {
+    v.ontimeupdate = () => {
+      if (_subtitleCues.length) updateSubtitle(v.currentTime);
+    };
 
-  // Subtitle panel
-  _subtitleCues = [];
-  _subtitleFileList = file.subtitles || [];
-  const panel = $('#subtitlePanel');
-  const selWrap = $('#subtitleSelect');
-  const selEl = $('#subtitleSelectEl');
-  if (_subtitleFileList.length) {
-    panel.classList.add('show');
-    selWrap.style.display = 'flex';
-    if (_subtitleFileList.length > 1) {
-      selEl.style.display = '';
-      selEl.innerHTML = _subtitleFileList.map((s, i) => `<option value="${i}">${s.name}</option>`).join('');
-      selEl.onchange = () => loadSubtitle(_subtitleFileList[selEl.value]);
-    } else {
-      selEl.style.display = 'none';
-    }
-    loadSubtitle(_subtitleFileList[0]);
-  } else {
-    panel.classList.remove('show');
-    selWrap.style.display = 'none';
-  }
-
-  // Subtitle download button
-  $('#subtitleDownloadBtn').onclick = async () => {
-    if (!_subtitleFileList.length) return;
-    const idx = selEl.value || 0;
-    const sub = _subtitleFileList[idx];
-    try {
-      const file = await sub.handle.getFile();
-      const url = URL.createObjectURL(file);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = sub.name;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) { toast('下载失败: ' + e.message); }
-  };
-
-  // Audio track detection and switching
-  const audioSelectWrap = $('#audioTrackSelect');
-  const audioSelectEl = $('#audioTrackSelectEl');
-  audioSelectWrap.style.display = 'none';
-  v.onloadedmetadata = () => {
-    const tracks = v.audioTracks;
-    if (tracks && tracks.length > 1) {
-      audioSelectWrap.style.display = 'inline-flex';
+    // Subtitle panel
+    _subtitleCues = [];
+    _subtitleFileList = file.subtitles || [];
+    const panel = $('#subtitlePanel');
+    const selWrap = $('#subtitleSelect');
+    const selEl = $('#subtitleSelectEl');
+    if (_subtitleFileList.length) {
       panel.classList.add('show');
-      audioSelectEl.innerHTML = '';
-      for (let i = 0; i < tracks.length; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = tracks[i].label || tracks[i].language || ('音轨 ' + (i + 1));
-        if (tracks[i].enabled) opt.selected = true;
-        audioSelectEl.appendChild(opt);
+      selWrap.style.display = 'flex';
+      if (_subtitleFileList.length > 1) {
+        selEl.style.display = '';
+        selEl.innerHTML = _subtitleFileList.map((s, i) => `<option value="${i}">${s.name}</option>`).join('');
+        selEl.onchange = () => loadSubtitle(_subtitleFileList[selEl.value]);
+      } else {
+        selEl.style.display = 'none';
       }
-      audioSelectEl.onchange = () => {
-        const idx = +audioSelectEl.value;
-        for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
-      };
+      loadSubtitle(_subtitleFileList[0]);
     } else {
-      audioSelectWrap.style.display = 'none';
+      panel.classList.remove('show');
+      selWrap.style.display = 'none';
     }
-  };
+
+    // Subtitle download button
+    $('#subtitleDownloadBtn').onclick = async () => {
+      if (!_subtitleFileList.length) return;
+      const idx = selEl.value || 0;
+      const sub = _subtitleFileList[idx];
+      try {
+        const f = await sub.handle.getFile();
+        const url = URL.createObjectURL(f);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = sub.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) { toast('下载失败: ' + e.message); }
+    };
+
+    // Audio track detection and switching
+    const audioSelectWrap = $('#audioTrackSelect');
+    const audioSelectEl = $('#audioTrackSelectEl');
+    audioSelectWrap.style.display = 'none';
+    v.onloadedmetadata = () => {
+      const tracks = v.audioTracks;
+      if (tracks && tracks.length > 1) {
+        audioSelectWrap.style.display = 'inline-flex';
+        panel.classList.add('show');
+        audioSelectEl.innerHTML = '';
+        for (let i = 0; i < tracks.length; i++) {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = tracks[i].label || tracks[i].language || ('音轨 ' + (i + 1));
+          if (tracks[i].enabled) opt.selected = true;
+          audioSelectEl.appendChild(opt);
+        }
+        audioSelectEl.onchange = () => {
+          const idx = +audioSelectEl.value;
+          for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
+        };
+      } else {
+        audioSelectWrap.style.display = 'none';
+      }
+    };
+  } else {
+    // Image: hide subtitle/audio panels
+    $('#subtitlePanel').classList.remove('show');
+    $('#subtitleSelect').style.display = 'none';
+    $('#audioTrackSelect').style.display = 'none';
+  }
 
   // Convert: track current file for right-click menu / F4
   window._currentFile = file;
@@ -1384,9 +1444,17 @@ async function openDetail(file) {
       }
     };
   });
-  $('#clipAddPanel').style.display = 'none';
-  resetClipForm();
-  loadClips();
+  // Clips: video only
+  if (!isImage) {
+    $('#clipAddPanel').style.display = 'none';
+    resetClipForm();
+    loadClips();
+  } else {
+    $('#clipAddPanel').style.display = 'none';
+    // Hide clip section for images
+    const clipsSection = document.querySelector('.clips-section');
+    if (clipsSection) clipsSection.style.display = 'none';
+  }
 }
 
 function updateNavButtons() {
@@ -1400,6 +1468,10 @@ function updateNavButtons() {
 function showList() {
   const v = $('#video');
   v.pause(); v.src = ''; v.controls = true; v.style.display = 'none';
+  const detailImg = $('#detailImage');
+  if (detailImg) { detailImg.src = ''; detailImg.style.display = 'none'; }
+  const clipsSection = document.querySelector('.clips-section');
+  if (clipsSection) clipsSection.style.display = '';
   stopPreview();
   S.playingClipId = null;
   S.curFile = null;
@@ -1879,6 +1951,52 @@ document.addEventListener('keydown', e => {
     if (e.key === 'b' || e.key === 'B') $('#markEndBtn').click();
   }
 });
+
+// ── Fullscreen controls auto-hide ──
+function _fsGetDelay() {
+  const v = parseFloat(localStorage.getItem('fsHideDelay'));
+  return isNaN(v) ? 2500 : Math.max(0, v * 1000);
+}
+let _fsHideTimer = null;
+function _fsShowControls() {
+  clearTimeout(_fsHideTimer);
+  const v = $('#video');
+  if (v && !v.hasAttribute('controls')) v.setAttribute('controls', '');
+  const delay = _fsGetDelay();
+  if (document.fullscreenElement && delay > 0) {
+    _fsHideTimer = setTimeout(() => {
+      const ve = $('#video');
+      if (ve) ve.removeAttribute('controls');
+    }, delay);
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  const v = $('#video');
+  if (!v) return;
+  if (document.fullscreenElement) {
+    _fsShowControls();
+    document.addEventListener('mousemove', _fsShowControls);
+    document.addEventListener('touchstart', _fsShowControls);
+  } else {
+    clearTimeout(_fsHideTimer);
+    _fsHideTimer = null;
+    v.setAttribute('controls', '');
+    document.removeEventListener('mousemove', _fsShowControls);
+    document.removeEventListener('touchstart', _fsShowControls);
+  }
+});
+// Sync settings UI with localStorage
+(function() {
+  const input = $('#fsHideDelayInput');
+  if (!input) return;
+  const saved = localStorage.getItem('fsHideDelay');
+  if (saved !== null) input.value = saved;
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    if (isNaN(v) || v < 0) return;
+    localStorage.setItem('fsHideDelay', String(v));
+  });
+})();
 
 // ── Preview ──
 let previewActive = false;
