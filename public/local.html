@@ -93,6 +93,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .video-resize-handle:hover{background:rgba(255,255,255,.06)}
 .video-resize-handle::after{content:'';width:32px;height:3px;background:rgba(255,255,255,.25);border-radius:2px}
 .detail-video video{width:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;transition:opacity .15s}
+#detailVideoBox:fullscreen,#detailVideoBox:-webkit-full-screen{background:#000;border-radius:0;overflow:visible;width:100vw;height:100vh}
+#detailVideoBox:fullscreen video,#detailVideoBox:fullscreen img,#detailVideoBox:-webkit-full-screen video,#detailVideoBox:-webkit-full-screen img{max-width:100vw;max-height:100vh}
 .subtitle-panel{display:none;position:relative;margin:-8px auto 16px;max-width:1080px;background:var(--card);border:1px solid var(--border);border-radius:0 0 8px 8px;padding:10px 16px;min-height:48px}
 .subtitle-panel.show{display:block}
 .subtitle-text{font-size:15px;color:var(--text);line-height:1.6;display:inline-block;vertical-align:middle;min-height:24px}
@@ -305,6 +307,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <div class="help-shortcut"><kbd>↑</kbd><span>上一个视频</span></div>
         <div class="help-shortcut"><kbd>↓</kbd><span>下一个视频</span></div>
         <div class="help-shortcut"><kbd>F</kbd><span>全屏播放</span></div>
+	        <div class="help-shortcut"><kbd>P</kbd><span>切换控件显示</span></div>
         <div class="help-shortcut"><kbd>R</kbd><span>重命名文件</span></div>
         <div class="help-shortcut"><kbd>Z</kbd><span>收藏/取消收藏</span></div>
         <div class="help-shortcut"><kbd>Del</kbd><span>删除文件</span></div>
@@ -742,9 +745,12 @@ $('#releaseBtn').onclick = () => {
   $('#thumbControls').style.display = 'none';
   $('#refreshBtn').style.display = 'none';
   $('#releaseBtn').style.display = 'none';
-  toast('已解除占用');
   // 5. Hint browser to release FSA permissions (best-effort)
   try { navigator.permissions.revoke({ name: 'file-system-access' }); } catch {}
+  // 6. Also tell server to release any held file handles (thumbnails, streams)
+  fetch('/api/local/release', { method: 'POST' }).then(r => r.json()).then(d => {
+    toast(d.message || '已解除占用');
+  }).catch(() => toast('已解除占用'));
 };
 
 async function walkDir(handle, name, relPath) {
@@ -1847,6 +1853,18 @@ async function toggleStar() {
   } catch (e) { toast('操作失败: ' + e.message); }
 }
 
+function toggleControls() {
+  const v = $('#video');
+  if (!v) return;
+  if (v.hasAttribute('controls')) {
+    v.removeAttribute('controls');
+    toast('控件已隐藏 (P键恢复)');
+  } else {
+    v.setAttribute('controls', '');
+    toast('控件已显示');
+  }
+}
+
 function renameCurrentVideo() {
   if (!S.curFile) return;
   const dotIdx = S.curFile.name.lastIndexOf('.');
@@ -1939,10 +1957,11 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp') { e.preventDefault(); $('#prevBtn').click(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); $('#nextBtn').click(); }
     if (e.key === 'Escape') { if (document.fullscreenElement) document.exitFullscreen(); else $('#backBtn').click(); }
-    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); const v = $('#video'); if (document.fullscreenElement) document.exitFullscreen(); else v.requestFullscreen().catch(() => {}); }
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); if (document.fullscreenElement) document.exitFullscreen(); else $('#detailVideoBox').requestFullscreen().catch(() => {}); }
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); renameCurrentVideo(); }
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentVideo(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
+    if (e.key === 'p' || e.key === 'P') { e.preventDefault(); toggleControls(); }
     if (e.key === 'F4') { e.preventDefault(); if (window._triggerConvert) window._triggerConvert(); }
   }
   // Clip marking shortcuts (only when clip panel is open)

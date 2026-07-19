@@ -513,9 +513,22 @@ app.get('/api/local/stream', (req, res) => {
   try {
     const stat = fs.statSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    const mimeMap = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.wmv': 'video/x-msvideo', '.m4v': 'video/mp4' };
-    const contentType = mimeMap[ext] || 'application/octet-stream';
-    const range = req.headers.range;
+    const videoMap = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.wmv': 'video/x-msvideo', '.m4v': 'video/mp4' };
+    const imageMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.bmp': 'image/bmp', '.svg': 'image/svg+xml', '.avif': 'image/avif', '.tiff': 'image/tiff', '.ico': 'image/x-icon' };
+    const isVideo = videoMap[ext];
+    const isImage = imageMap[ext];
+    const contentType = isVideo || isImage || 'application/octet-stream';
+
+    // Images: read entire file into memory — no persistent file handle
+    if (isImage) {
+      const maxImageSize = 50 * 1024 * 1024; // 50MB limit for in-memory
+      if (stat.size <= maxImageSize) {
+        const data = fs.readFileSync(filePath);
+        res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': isImage, 'Cache-Control': 'max-age=3600' });
+        return res.end(data);
+      }
+      // Fall through to streaming for very large images
+    }
 
     function track(stream) {
       if (!openStreams.has(filePath)) openStreams.set(filePath, new Set());
@@ -531,6 +544,7 @@ app.get('/api/local/stream', (req, res) => {
       res.on('close', cleanup);
     }
 
+    const range = req.headers.range;
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
@@ -569,6 +583,23 @@ app.get('/api/local/stream', (req, res) => {
     console.error('Stream 404:', filePath, '-', err.message);
     if (!res.headersSent) res.status(404).send('File not found');
   }
+});
+
+// ── Release all open file handles (for safe folder deletion) ──
+app.post('/api/local/release', (req, res) => {
+  let killed = 0;
+  // Kill all tracked streams
+  for (const [filePath, set] of openStreams) {
+    for (const s of set) {
+      try { s.stream.destroy(); } catch {}
+      try { s.res.end(); } catch {}
+      killed++;
+    }
+  }
+  openStreams.clear();
+  // Also let any pending thumbnail queue drain (they don't hold open files long)
+  // The point is to release file handles held by video streaming
+  res.json({ released: killed, message: killed > 0 ? `已释放 ${killed} 个文件句柄` : '没有需要释放的文件句柄' });
 });
 
 // ── Subtitle file ──
