@@ -147,6 +147,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .detail-video:-webkit-full-screen video,.detail-video:-webkit-full-screen img{max-width:100vw;max-height:100vh}
 .detail-info{margin-bottom:16px}
 .detail-name{font-size:20px;font-weight:700;margin-bottom:8px}
+
+/* ── Detail Controls ── */
+.detail-controls{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.detail-controls .ctrl-btn{background:var(--card);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all var(--speed);font-family:inherit}
+.detail-controls .ctrl-btn:hover{background:rgba(255,255,255,.08);border-color:#444}
+.detail-controls .ctrl-btn.play-btn{width:42px;height:42px;font-size:16px;background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.detail-controls .ctrl-btn.play-btn:hover{background:var(--accent);color:#fff}
+.detail-controls .ctrl-label{font-size:11px;color:var(--text3);margin-left:8px}
 .detail-tags{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
 .cat-tag{padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.3px;background:var(--accent-dim);color:var(--accent)}
 .detail-notes{font-size:14px;color:var(--text2);line-height:1.6}
@@ -202,6 +210,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 10px 4px 0;line-height:1}
 .sidebar-overlay{display:none}
 
+/* ── Sort Bar ── */
+.sort-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.sort-bar .sort-label{font-size:12px;color:var(--text3);font-weight:500;white-space:nowrap}
+.sort-bar select{background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:5px 28px 5px 10px;font-family:inherit;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color var(--speed)}
+.sort-bar select:focus{border-color:var(--accent)}
+.sort-bar select option{background:var(--card);color:var(--text)}
+.sort-bar .current-sort{font-size:12px;color:var(--accent);font-weight:600}
+
+/* ── Sidebar Collapse ── */
+.sidebar-collapse{display:flex;align-items:center;justify-content:center;width:24px;height:24px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;border-radius:4px;transition:all var(--speed);flex-shrink:0}
+.sidebar-collapse:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.layout.collapsed .sidebar{width:0;padding:0;overflow:hidden;border-right:none}
+.layout.collapsed{grid-template-columns:0 1fr}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
@@ -243,6 +265,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       <div class="help-shortcuts">
         <div class="help-shortcut"><kbd>↑</kbd><span>上一个视频</span></div>
         <div class="help-shortcut"><kbd>↓</kbd><span>下一个视频</span></div>
+        <div class="help-shortcut"><kbd>&larr;</kbd><span>后退 5 秒</span></div>
+        <div class="help-shortcut"><kbd>&rarr;</kbd><span>前进 5 秒</span></div>
+        <div class="help-shortcut"><kbd>Space</kbd><span>播放/暂停</span></div>
         <div class="help-shortcut"><kbd>F</kbd><span>全屏播放</span></div>
 	        <div class="help-shortcut"><kbd>P</kbd><span>切换控件显示</span></div>
         <div class="help-shortcut"><kbd>Z</kbd><span>收藏/取消收藏</span></div>
@@ -266,11 +291,25 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <div class="sidebar" id="sidebar">
     <div class="sidebar-head">
       <span>分类</span>
-      <button class="sidebar-add" id="addRootBtn" title="添加分类">+</button>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="sidebar-collapse" id="sidebarCollapseBtn" title="收起侧栏">&#9664;</button>
+        <button class="sidebar-add" id="addRootBtn" title="添加分类">+</button>
+      </div>
     </div>
     <div id="tree"></div>
   </div>
   <div class="main" id="mainArea">
+    <div class="sort-bar" id="sortBar">
+      <span class="sort-label">排序</span>
+      <select id="sortSelect">
+        <option value="newest">最新优先</option>
+        <option value="oldest">最旧优先</option>
+        <option value="name-asc">名称 A-Z</option>
+        <option value="name-desc">名称 Z-A</option>
+        <option value="recent">最近播放</option>
+      </select>
+      <span class="current-sort" id="currentSortLabel"></span>
+    </div>
     <div class="grid" id="grid"></div>
     <div class="detail-view" id="detailView" style="display:none">
       <div class="detail-topbar">
@@ -284,6 +323,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       <div class="detail-video"><video id="detailVideo" controls loop preload="auto" style="display:none;width:100%;max-width:1080px;max-height:80vh;object-fit:contain;margin:0 auto"></video></div>
       <div class="detail-info">
         <div class="detail-name" id="detailName"></div>
+        <div class="detail-controls">
+          <button class="ctrl-btn" id="rewindBtn" title="后退5秒">⏪</button>
+          <button class="ctrl-btn play-btn" id="playPauseBtn" title="播放/暂停">▶</button>
+          <button class="ctrl-btn" id="forwardBtn" title="前进5秒">⏩</button>
+          <span class="ctrl-label" id="playTimeLabel">0:00 / 0:00</span>
+        </div>
         <div class="detail-tags" id="detailTags"></div>
         <div class="detail-notes" id="detailNotes"></div>
       </div>
@@ -421,6 +466,7 @@ async function loadAll() {
 async function loadTricks() {
   const url = S.curCat ? `/api/tricks?category=${S.curCat}` : '/api/tricks';
   S.tricks = await fetch(url).then(r => r.json());
+  applySort();
   renderGrid();
 }
 
@@ -588,6 +634,63 @@ $('#addRootBtn').onclick = () => {
   input.onkeydown = e => { if (e.key === 'Enter') done(); if (e.key === 'Escape') { saved = true; input.remove(); } };
   input.onblur = done;
 };
+
+// ════════════════════════════
+//  Sort
+// ════════════════════════════
+const SORT_OPTIONS = { newest: '最新优先', oldest: '最旧优先', 'name-asc': '名称 A-Z', 'name-desc': '名称 Z-A', recent: '最近播放' };
+let S_playHistory = [];
+
+function initSort() {
+  const saved = localStorage.getItem('sortMode') || 'newest';
+  $('#sortSelect').value = saved;
+  S.sortMode = saved;
+  updateSortLabel();
+}
+
+function updateSortLabel() {
+  const label = SORT_OPTIONS[S.sortMode] || '最新优先';
+  $('#currentSortLabel').textContent = label;
+}
+
+$('#sortSelect').onchange = () => {
+  S.sortMode = $('#sortSelect').value;
+  localStorage.setItem('sortMode', S.sortMode);
+  updateSortLabel();
+  applySort();
+  renderGrid();
+};
+
+function applySort() {
+  const mode = S.sortMode || 'newest';
+  if (mode === 'newest') {
+    S.tricks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } else if (mode === 'oldest') {
+    S.tricks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  } else if (mode === 'name-asc') {
+    S.tricks.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (mode === 'name-desc') {
+    S.tricks.sort((a, b) => b.name.localeCompare(a.name));
+  } else if (mode === 'recent') {
+    // Sort by play history lastPlayedAt desc; unplayed videos go to the end
+    const historyMap = {};
+    for (const h of S_playHistory) historyMap[h.trickId] = h.lastPlayedAt;
+    S.tricks.sort((a, b) => {
+      const ta = historyMap[a.id] || '';
+      const tb = historyMap[b.id] || '';
+      if (ta && tb) return tb.localeCompare(ta);
+      if (ta) return -1;
+      if (tb) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }
+}
+
+async function loadPlayHistory() {
+  try {
+    S_playHistory = await fetch('/api/play-history').then(r => r.json());
+  } catch { S_playHistory = []; }
+}
 
 // ════════════════════════════
 //  Grid
@@ -790,6 +893,11 @@ function openDetail(id) {
   v.src = t.videoPath;
   v.load();
   v.ontimeupdate = () => {
+    // Update time label
+    const ct = v.currentTime || 0;
+    const dur = v.duration || 0;
+    $('#playTimeLabel').textContent = `${fmtTime(ct)} / ${fmtTime(dur)}`;
+    // Clip loop
     if (S.playingClipId && S.curTrick) {
       const clip = S.curTrick.clips?.find(c => c.id === S.playingClipId);
       if (clip && v.currentTime >= clip.endTime) v.currentTime = clip.startTime;
@@ -798,9 +906,23 @@ function openDetail(id) {
   v.play().catch(() => {});
   v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
 
+  // Record play history
+  fetch('/api/play-history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trickId: t.id, trickName: t.name, progress: 0 })
+  }).catch(() => {});
+
   $('#clipAddPanel').style.display = 'none';
   resetClipForm();
   renderClips();
+}
+
+function fmtTime(s) {
+  if (!s || !isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
 function updateNavButtons() {
@@ -883,6 +1005,10 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Delete') { e.preventDefault(); deleteCurrentTrick(); }
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
     if (e.key === 'p' || e.key === 'P') { e.preventDefault(); toggleControls(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); if ($('#detailVideo').src) $('#rewindBtn').click(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); if ($('#detailVideo').src) $('#forwardBtn').click(); }
+    // Space for play/pause
+    if (e.key === ' ') { e.preventDefault(); if ($('#detailVideo').src) $('#playPauseBtn').click(); }
   }
   // Clip marking shortcuts (only when clip panel is open)
   if ($('#clipAddPanel').style.display !== 'none') {
@@ -1224,8 +1350,83 @@ $('#hamburgerBtn').onclick = () => {
 };
 $('#sidebarOverlay').onclick = closeSidebar;
 
+// ── Detail Controls ──
+$('#rewindBtn').onclick = () => {
+  const v = $('#detailVideo');
+  if (!v.src) return;
+  v.currentTime = Math.max(0, (v.currentTime || 0) - 5);
+};
+
+$('#forwardBtn').onclick = () => {
+  const v = $('#detailVideo');
+  if (!v.src) return;
+  v.currentTime = Math.min(v.duration || 0, (v.currentTime || 0) + 5);
+};
+
+$('#playPauseBtn').onclick = () => {
+  const v = $('#detailVideo');
+  if (!v.src) return;
+  if (v.paused) { v.play().catch(() => {}); $('#playPauseBtn').textContent = '⏸'; }
+  else { v.pause(); $('#playPauseBtn').textContent = '▶'; }
+};
+
+// Update play/pause button icon when video state changes
+document.addEventListener('play', e => {
+  if (e.target === $('#detailVideo')) $('#playPauseBtn').textContent = '⏸';
+}, true);
+document.addEventListener('pause', e => {
+  if (e.target === $('#detailVideo')) $('#playPauseBtn').textContent = '▶';
+}, true);
+
+// ── Sidebar Collapse (large screen) ──
+(function() {
+  const layout = $$('.layout')[0];
+  const btn = $('#sidebarCollapseBtn');
+  if (!btn) return;
+  const saved = localStorage.getItem('sidebarCollapsed');
+  const isCollapsed = saved === 'true' && window.innerWidth > 768;
+  if (isCollapsed) {
+    layout.classList.add('collapsed');
+    btn.textContent = '▶';
+    btn.title = '展开侧栏';
+  }
+  btn.onclick = () => {
+    const coll = layout.classList.toggle('collapsed');
+    btn.textContent = coll ? '▶' : '◀';
+    btn.title = coll ? '展开侧栏' : '收起侧栏';
+    localStorage.setItem('sidebarCollapsed', coll);
+  };
+  // When resizing to small screen, auto-expand
+  window.addEventListener('resize', () => {
+    if (window.innerWidth <= 768 && layout.classList.contains('collapsed')) {
+      layout.classList.remove('collapsed');
+      btn.textContent = '◀';
+      btn.title = '收起侧栏';
+    }
+  });
+})();
+
+// ── Record progress when leaving detail view ──
+const _origShowGrid = showGrid;
+showGrid = function() {
+  if (S.curTrick) {
+    const v = $('#detailVideo');
+    const progress = v ? v.currentTime || 0 : 0;
+    fetch('/api/play-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trickId: S.curTrick.id, trickName: S.curTrick.name, progress })
+    }).catch(() => {});
+  }
+  _origShowGrid.call(this);
+  // Also load play history for sort after detail view changes
+  if (S.sortMode === 'recent') loadPlayHistory();
+};
+
 // ── Init ──
 loadAll();
+initSort();
+loadPlayHistory();
 </script>
 </body>
 </html>

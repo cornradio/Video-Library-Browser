@@ -906,6 +906,45 @@ app.post('/api/resource-links', (req, res) => {
   res.json({ success: true });
 });
 
+// ════════════════════════════
+//  Play History API
+// ════════════════════════════
+const PLAY_HISTORY_FILE = path.join(BASE, 'data', 'play-history.json');
+
+function readPlayHistory() {
+  try { return JSON.parse(fs.readFileSync(PLAY_HISTORY_FILE, 'utf-8')); }
+  catch { return []; }
+}
+function writePlayHistory(d) { fs.writeFileSync(PLAY_HISTORY_FILE, JSON.stringify(d, null, 2)); }
+
+app.get('/api/play-history', (_req, res) => {
+  res.json(readPlayHistory());
+});
+
+app.post('/api/play-history', (req, res) => {
+  const { trickId, trickName, progress } = req.body;
+  if (!trickId) return res.status(400).json({ error: '缺少 trickId' });
+  let history = readPlayHistory();
+  const existing = history.find(h => h.trickId === trickId);
+  if (existing) {
+    existing.lastPlayedAt = new Date().toISOString();
+    if (progress !== undefined) existing.progress = progress;
+    if (trickName !== undefined) existing.trickName = trickName;
+  } else {
+    history.push({
+      trickId,
+      trickName: trickName || '',
+      progress: progress || 0,
+      lastPlayedAt: new Date().toISOString()
+    });
+  }
+  // Keep only the latest 200 entries, sort by lastPlayedAt desc
+  history.sort((a, b) => new Date(b.lastPlayedAt) - new Date(a.lastPlayedAt));
+  if (history.length > 200) history = history.slice(0, 200);
+  writePlayHistory(history);
+  res.json({ success: true });
+});
+
 // Server-side file operations
 app.get('/api/local/reveal', (req, res) => {
   const filePath = req.query.path;

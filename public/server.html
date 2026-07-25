@@ -109,7 +109,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .convert-quality-item .q-name{color:var(--text);font-weight:500}
 .convert-quality-item .q-size{color:var(--text2);font-size:11px;font-family:monospace}
 .convert-quality-item .q-copy{color:#daa520;font-size:10px;margin-left:6px}
-.detail-name{font-size:16px;font-weight:600;margin-bottom:16px;word-break:break-all}
+.detail-name{font-size:16px;font-weight:600;margin-bottom:8px;word-break:break-all}
+.ctrl-btn{background:var(--card);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:0px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all var(--speed);font-family:inherit;flex-shrink:0}
+.ctrl-btn:hover{background:rgba(255,255,255,.08);border-color:#444}
+
+.ctrl-label{font-size:11px;color:var(--text3);margin-left:8px;white-space:nowrap;flex-shrink:0}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
 .clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
 .clip-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
@@ -264,6 +268,39 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   *{touch-action:manipulation}
 }
 
+/* ── Sort Bar ── */
+.sort-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.sort-bar .sort-label{font-size:12px;color:var(--text3);font-weight:500;white-space:nowrap}
+.sort-bar select{background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:5px 28px 5px 10px;font-family:inherit;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color var(--speed)}
+.sort-bar select:focus{border-color:var(--accent)}
+.sort-bar select option{background:var(--card);color:var(--text)}
+.sort-bar .current-sort{font-size:12px;color:var(--accent);font-weight:600}
+
+/* ── Sidebar Collapse Toggle ── */
+.sidebar-toggle {
+    position: absolute;
+    top: 19px;
+    left: -7px;
+    z-index: 10;
+    width: 27px;
+    height: 34px;
+    border-radius: 21%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: all var(--speed);
+    padding: 0;
+}
+.sidebar-toggle:hover{color:var(--text);border-color:var(--accent)}
+.main{position:relative}
+.layout.collapsed .sidebar{width:0;padding:0;overflow:hidden;border-right:none;min-width:0}
+.layout.collapsed{grid-template-columns:0 1fr}
+
 </style>
 </head>
 <body>
@@ -301,12 +338,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   <div class="sort-wrap">
     <button class="sort-btn" id="sortBtn">&#8597; 排序</button>
     <div class="sort-drop" id="sortDrop">
-      <button data-sort="name_asc" class="active">名称 A → Z</button>
+      <button data-sort="name_asc">名称 A → Z</button>
       <button data-sort="name_desc">名称 Z → A</button>
       <button data-sort="time_desc">时间 新→旧</button>
       <button data-sort="time_asc">时间 旧→新</button>
+      <button data-sort="recent">最近播放</button>
     </div>
   </div>
+  <div id="currentSortLabel" style="font-size:11px;color:var(--accent);font-weight:600;margin-left:4px;white-space:nowrap"></div>
   <div style="flex:1"></div>
   <button class="upload-icon-btn" id="uploadBtn" title="上传视频"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
   <input type="file" id="uploadInput" multiple accept="video/*" style="display:none">
@@ -365,6 +404,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   </div>
 
   <div class="main" id="mainArea">
+    <button class="sidebar-toggle" id="sidebarCollapseBtn" title="收起侧栏">&#9664;</button>
     <div id="listView">
       <div id="whitelistSelect" style="display:none;margin-bottom:16px">
         <div style="font-size:14px;color:var(--text2);margin-bottom:10px">选择一个目录：</div>
@@ -412,7 +452,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
         <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
       </div>
-      <div class="detail-player" id="detailPlayer">
+      <div class="detail-player" id="detailPlayer" style="position:relative">
         <div class="detail-video" id="detailVideoBox"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-height:100%;object-fit:contain"></video></div>
         <div class="video-resize-handle" id="videoResizeHandle"></div>
         <div class="subtitle-panel" id="subtitlePanel">
@@ -428,7 +468,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
           <button class="subtitle-download" id="subtitleDownloadBtn" title="下载字幕">&#8595;</button>
         </div>
       </div>
-      <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span><span id="detailNameText"></span></div>
+      <div id="speedIndicator" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);color:var(--accent);font-size:13px;font-weight:700;padding:6px 18px;border-radius:20px;border:1px solid var(--accent);letter-spacing:1px;white-space:nowrap;z-index:999;pointer-events:none">2x 倍速</div>
+    </div>
+      <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span><span id="detailNameText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <button class="ctrl-btn" id="rewindBtn" title="后退5秒">‹</button>
+        <button class="ctrl-btn" id="playPauseBtn" title="播放/暂停">▶</button>
+        <button class="ctrl-btn" id="forwardBtn" title="前进5秒">›</button>
+        <span class="ctrl-label" id="playTimeLabel">0:00 / 0:00</span>
+      </div>
       <div id="detailTags" style="padding:0 24px 8px;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="clips-section">
         <div class="clips-head">
@@ -563,10 +610,12 @@ $('#sortDrop').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sort]');
   if (!btn) return;
   S.sortBy = btn.dataset.sort;
+  localStorage.setItem('serverSortBy', S.sortBy);
   $('#sortDrop').querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   $('#sortDrop').classList.remove('show');
   if (S.currentFolderPath) showVideosForFolder(S.currentFolderPath);
+  updateSortLabel();
 });
 
 function sortVideos(arr) {
@@ -582,6 +631,19 @@ function sortVideos(arr) {
       break;
     case 'time_desc':
       arr.sort((a, b) => (b.birthtime || 0) - (a.birthtime || 0));
+      break;
+    case 'recent':
+      const historyMap = {};
+      try { JSON.parse(localStorage.getItem('playHistory') || '[]').forEach(item => { historyMap[item.path] = item.time; }); } catch(e) {}
+      try { if (window._serverPlayHistory) window._serverPlayHistory.forEach(item => { if (!historyMap[item.path]) historyMap[item.path] = new Date(item.lastPlayedAt).getTime(); }); } catch(e) {}
+      arr.sort((a, b) => {
+        const ta = historyMap[a.path] || 0;
+        const tb = historyMap[b.path] || 0;
+        if (ta && tb) return tb - ta;
+        if (ta) return -1;
+        if (tb) return 1;
+        return (b.birthtime || 0) - (a.birthtime || 0);
+      });
       break;
   }
 }
@@ -1463,7 +1525,7 @@ function openDetail(file, noPush) {
     v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
     v.load();
     v.play().catch(() => {});
-    v.oncanplay = () => { v.style.opacity = '1'; v.oncanplay = null; };
+    v.oncanplay = () => { v.style.opacity = '1'; v.playbackRate = 1.0; v.oncanplay = null; };
   }
 
   // Drag handle: resize container vertically (persisted) — works for both video & image
@@ -2269,12 +2331,20 @@ document.addEventListener('keydown', e => {
     if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); toggleStar(); }
     if (e.key === 'p' || e.key === 'P') { e.preventDefault(); toggleControls(); }
     if (e.key === 'F4') { e.preventDefault(); if (window._triggerConvert) window._triggerConvert(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); if ($('#video').src) $('#rewindBtn').click(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); if ($('#video').src) { if (!e.repeat) $('#forwardBtn').click(); startFF(); } }
+    if (e.key === ' ') { e.preventDefault(); if ($('#video').src) $('#playPauseBtn').click(); }
   }
   // Clip marking shortcuts (only when clip panel is open)
   if ($('#clipAddPanel').style.display !== 'none') {
     if (e.key === 'a' || e.key === 'A') $('#markStartBtn').click();
     if (e.key === 'b' || e.key === 'B') $('#markEndBtn').click();
   }
+});
+
+// Keyup: release right arrow stops fast-forward
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowRight') stopFF();
 });
 
 // ── Fullscreen controls auto-hide ──
@@ -3033,6 +3103,157 @@ $('#uploadInput').onchange = async (e) => {
 
   xhr.send(fd);
 };
+
+// ── Sort: update label and persist ──
+function updateSortLabel() {
+  const labels = { name_asc: '名称 A-Z', name_desc: '名称 Z-A', time_desc: '时间 新->旧', time_asc: '时间 旧->新', recent: '最近播放' };
+  const el = $('#currentSortLabel');
+  if (el) el.textContent = labels[S.sortBy] || '';
+}
+(function() {
+  const saved = localStorage.getItem('serverSortBy');
+  if (saved && ['name_asc','name_desc','time_asc','time_desc','recent'].includes(saved)) {
+    S.sortBy = saved;
+    const btn = document.querySelector('#sortDrop button[data-sort="' + saved + '"]');
+    if (btn) {
+      document.querySelectorAll('#sortDrop button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  }
+  updateSortLabel();
+  // Load server play history for sort
+  fetch('/api/play-history').then(r => r.json()).then(data => { window._serverPlayHistory = data; }).catch(() => {});
+})();
+
+// ── Detail Controls ──
+$('#rewindBtn').onclick = () => {
+  const v = $('#video');
+  if (!v.src) return;
+  v.currentTime = Math.max(0, (v.currentTime || 0) - 5);
+};
+$('#forwardBtn').onclick = () => {
+  const v = $('#video');
+  if (!v.src) return;
+  v.currentTime = Math.min(v.duration || 0, (v.currentTime || 0) + 5);
+};
+// ── 2x 倍速（长按 forwardBtn 或键盘 →） ──
+let _ffTimer = null;
+let _ffActive = false;
+
+function startFF() {
+  const v = $('#video');
+  if (!v || !v.src || !v.duration) return;
+  if (_ffTimer || _ffActive) return;
+  _ffTimer = setTimeout(() => {
+    _ffTimer = null;
+    _ffActive = true;
+    v.playbackRate = 2.0;
+    if (v.paused) v.play().catch(() => {});
+    const ind = $('#speedIndicator');
+    if (ind) ind.style.display = '';
+  }, 200);
+}
+
+function stopFF() {
+  if (_ffTimer) {
+    clearTimeout(_ffTimer);
+    _ffTimer = null;
+  }
+  if (_ffActive) {
+    _ffActive = false;
+    const v = $('#video');
+    if (v) v.playbackRate = 1.0;
+    const ind = $('#speedIndicator');
+    if (ind) ind.style.display = 'none';
+  }
+}
+
+$('#forwardBtn').addEventListener('mousedown', startFF);
+$('#forwardBtn').addEventListener('mouseup', stopFF);
+$('#forwardBtn').addEventListener('mouseleave', stopFF);
+$('#forwardBtn').addEventListener('touchstart', startFF, {passive: true});
+$('#forwardBtn').addEventListener('touchend', stopFF);
+$('#playPauseBtn').onclick = () => {
+  const v = $('#video');
+  if (!v.src) return;
+  if (v.paused) { v.play().catch(() => {}); $('#playPauseBtn').textContent = '⏸'; }
+  else { v.pause(); $('#playPauseBtn').textContent = '▶'; }
+};
+// Update play/pause icon on video events
+document.addEventListener('play', e => { if (e.target === $('#video')) $('#playPauseBtn').textContent = '⏸'; }, true);
+document.addEventListener('pause', e => { if (e.target === $('#video')) $('#playPauseBtn').textContent = '▶'; }, true);
+
+// ── Time label update in detail view ──
+{
+  const v = $('#video');
+  if (v) {
+    v.addEventListener('timeupdate', function() {
+      const ct = this.currentTime || 0;
+      const dur = this.duration || 0;
+      const label = $('#playTimeLabel');
+      if (label) label.textContent = fmtTime(ct) + ' / ' + fmtTime(dur);
+    });
+  }
+}
+function fmtTime(s) {
+  if (!s || !isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+// ── Play history sync to server ──
+function syncPlayHistoryToServer(file, progress) {
+  fetch('/api/play-history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trickId: file.path, trickName: file.name, progress: progress || 0 })
+  }).catch(() => {});
+}
+// Hook into openDetail to also sync to server
+(function() {
+  const _origAddHistory = addHistory;
+  addHistory = function(file) {
+    _origAddHistory(file);
+    syncPlayHistoryToServer(file);
+  };
+  // Hook into backBtn to record progress
+  const _origBack = $('#backBtn').onclick;
+  $('#backBtn').onclick = function(e) {
+    if (S.curFile) {
+      const v = $('#video');
+      syncPlayHistoryToServer(S.curFile, v ? v.currentTime || 0 : 0);
+    }
+    if (_origBack) _origBack.call(this, e);
+  };
+})();
+
+// ── Sidebar Collapse (large screen) ──
+(function() {
+  const layout = $('.layout');
+  const btn = $('#sidebarCollapseBtn');
+  if (!btn) return;
+  const saved = localStorage.getItem('sidebarCollapsed');
+  const isCollapsed = saved === 'true' && window.innerWidth > 768;
+  if (isCollapsed) {
+    layout.classList.add('collapsed');
+    btn.textContent = '▶';
+    btn.title = '展开侧栏';
+  }
+  btn.onclick = function() {
+    const coll = layout.classList.toggle('collapsed');
+    btn.textContent = coll ? '▶' : '◄';
+    btn.title = coll ? '展开侧栏' : '收起侧栏';
+    localStorage.setItem('sidebarCollapsed', coll);
+  };
+  window.addEventListener('resize', function() {
+    if (window.innerWidth <= 768 && layout.classList.contains('collapsed')) {
+      layout.classList.remove('collapsed');
+      btn.textContent = '◄';
+      btn.title = '收起侧栏';
+    }
+  });
+})();
 </script>
 </body>
 </html>

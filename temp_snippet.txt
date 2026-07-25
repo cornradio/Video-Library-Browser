@@ -1,0 +1,8 @@
+ */
+.sort-wrap{position:relative}
+.sort-btn{background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;transition:background .15s;font-family:inherit}
+.sort-btn:hover{background:var(--card);color:var(--text)}
+.sort-drop{display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:60;white-space:nowrap}
+.sort-drop.show{display:block}
+.sort-drop button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text2);padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .1s}
+.sort-drop
