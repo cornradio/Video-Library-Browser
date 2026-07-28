@@ -112,6 +112,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .detail-name{font-size:16px;font-weight:600;margin-bottom:8px;word-break:break-all}
 .ctrl-btn{background:var(--card);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:0px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all var(--speed);font-family:inherit;flex-shrink:0}
 .ctrl-btn:hover{background:rgba(255,255,255,.08);border-color:#444}
+.ctrl-btn.ff-on{border-color:var(--accent);color:var(--accent);font-weight:700;font-size:13px}
 
 .ctrl-label{font-size:11px;color:var(--text3);margin-left:8px;white-space:nowrap;flex-shrink:0}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
@@ -178,20 +179,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .fs-delay-input{width:50px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;font-family:monospace;text-align:center;outline:none}
 .fs-delay-input:focus{border-color:var(--accent)}
 .fs-delay-unit{font-size:11px;color:var(--text3)}
-.history-panel{display:none;position:fixed;top:52px;right:60px;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;width:380px;max-height:480px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.history-panel.show{display:block}
-.history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.history-head span{font-size:12px;color:var(--text2);font-weight:600}
-.history-clear{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:inherit;padding:2px 6px;border-radius:4px;transition:all .15s}
+.history-panel{position:fixed;top:0;right:0;z-index:60;width:420px;height:100vh;background:var(--card);border-left:1px solid var(--border);box-shadow:-4px 0 24px rgba(0,0,0,.5);overflow-y:auto;padding:16px;transform:translateX(100%);transition:transform .25s ease}
+.history-panel.show{transform:translateX(0)}
+.history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.history-head span{font-size:14px;color:var(--text);font-weight:600}
+.history-clear{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 10px;border-radius:4px;transition:all .15s}
 .history-clear:hover{color:var(--accent);background:var(--accent-dim)}
-.history-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.history-card{cursor:pointer;border-radius:6px;overflow:hidden;border:1px solid var(--border);transition:border-color .15s}
-.history-card:hover{border-color:#444}
+.history-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.history-card{cursor:pointer;border-radius:8px;overflow:hidden;border:1px solid var(--border);transition:border-color .15s}
+.history-card:hover{border-color:#666}
 .history-card-media{aspect-ratio:16/9;background:#0a0a0a;position:relative;overflow:hidden}
 .history-card-media img{width:100%;height:100%;object-fit:cover;display:block}
-.history-card-name{font-size:11px;padding:4px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
-.history-card-time{font-size:9px;color:var(--text3);padding:0 6px 4px}
-.history-empty{text-align:center;padding:30px 10px;color:var(--text3);font-size:12px}
+.history-card-name{font-size:12px;padding:6px 8px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.history-card-time{font-size:10px;color:var(--text3);padding:0 8px 6px}
+.history-empty{text-align:center;padding:40px 10px;color:var(--text3);font-size:13px}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -262,7 +263,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .search-input{flex:1;width:auto;min-width:0;font-size:13px;padding:6px 10px}
   .detail-topbar{flex-wrap:wrap}
   .detail-topbar .btn-sm{padding:5px 8px;font-size:11px}
-  .history-panel{right:8px;width:calc(100vw - 16px);max-width:380px}
+  .history-panel{width:calc(100vw - 16px);max-width:420px}
   .help-panel{right:8px;width:calc(100vw - 16px);max-width:300px}
   /* Prevent double-tap zoom */
   *{touch-action:manipulation}
@@ -328,9 +329,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <span class="mode-arrow">▼</span>
   </div>
   <div class="mode-dropdown" id="modeDropdown">
-    <a href="/"><span class="mode-icon">⭐</span>收藏库</a>
+    <a href="/" class="active"><span class="mode-icon">🖥️</span>服务器浏览</a>
+    <a href="/index.html"><span class="mode-icon">⭐</span>收藏库</a>
     <a href="/local.html"><span class="mode-icon">💻</span>本地模式</a>
-    <a href="/server.html" class="active"><span class="mode-icon">🖥️</span>服务器浏览</a>
     <a href="/converter.html"><span class="mode-icon">🔄</span>超级转换器</a>
     <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
   </div>
@@ -634,8 +635,7 @@ function sortVideos(arr) {
       break;
     case 'recent':
       const historyMap = {};
-      try { JSON.parse(localStorage.getItem('playHistory') || '[]').forEach(item => { historyMap[item.path] = item.time; }); } catch(e) {}
-      try { if (window._serverPlayHistory) window._serverPlayHistory.forEach(item => { if (!historyMap[item.path]) historyMap[item.path] = new Date(item.lastPlayedAt).getTime(); }); } catch(e) {}
+      try { JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]').forEach(item => { historyMap[item.path] = item.time; }); } catch(e) {}
       arr.sort((a, b) => {
         const ta = historyMap[a.path] || 0;
         const tb = historyMap[b.path] || 0;
@@ -1525,7 +1525,7 @@ function openDetail(file, noPush) {
     v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
     v.load();
     v.play().catch(() => {});
-    v.oncanplay = () => { v.style.opacity = '1'; v.playbackRate = 1.0; v.oncanplay = null; };
+    v.oncanplay = () => { v.style.opacity = '1'; _ffLocked = false; _ffActive = false; _setFFOff(v); v.oncanplay = null; };
   }
 
   // Drag handle: resize container vertically (persisted) — works for both video & image
@@ -2342,9 +2342,9 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Keyup: release right arrow stops fast-forward
+// Keyup: release right arrow stops fast-forward (unless locked)
 document.addEventListener('keyup', e => {
-  if (e.key === 'ArrowRight') stopFF();
+  if (e.key === 'ArrowRight' && !_ffLocked) stopFF();
 });
 
 // ── Fullscreen controls auto-hide ──
@@ -2817,6 +2817,33 @@ function getHistory() {
   catch { return []; }
 }
 
+async function loadHistoryFromServer() {
+  try {
+    const res = await fetch('/api/play-history');
+    const serverHistory = await res.json();
+    if (!Array.isArray(serverHistory) || !serverHistory.length) return;
+    // Convert server format to client format, merge into localStorage
+    const localHistory = getHistory();
+    const localMap = {};
+    localHistory.forEach(h => { localMap[h.path] = h; });
+    const merged = serverHistory.slice(0, HISTORY_MAX).map(h => ({
+      path: h.trickId,
+      name: h.trickName || h.trickId.split(/[/\\]/).pop(),
+      thumb: `/api/local/thumbnail?path=${encodeURIComponent(h.trickId)}`,
+      time: new Date(h.lastPlayedAt).getTime()
+    }));
+    // Also keep local-only entries (from other sources) at the end
+    for (const h of localHistory) {
+      if (!merged.find(m => m.path === h.path)) {
+        merged.push(h);
+      }
+    }
+    // Sort by time desc
+    merged.sort((a, b) => b.time - a.time);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(merged.slice(0, HISTORY_MAX)));
+  } catch (e) { /* server unavailable, keep localStorage */ }
+}
+
 function addHistory(file) {
   let history = getHistory().filter(h => h.path !== file.path);
   history.unshift({ path: file.path, name: file.name, thumb: `/api/local/thumbnail?path=${encodeURIComponent(file.path)}`, time: Date.now() });
@@ -2899,6 +2926,7 @@ $('#historyPanel').onclick = (e) => e.stopPropagation();
 $('#historyClearBtn').onclick = () => {
   if (!confirm('清空所有播放历史？')) return;
   localStorage.removeItem(HISTORY_KEY);
+  fetch('/api/play-history', { method: 'DELETE' }).catch(() => {});
   renderHistory();
 };
 
@@ -3121,8 +3149,10 @@ function updateSortLabel() {
     }
   }
   updateSortLabel();
-  // Load server play history for sort
-  fetch('/api/play-history').then(r => r.json()).then(data => { window._serverPlayHistory = data; }).catch(() => {});
+  // Load server play history (source of truth) — populates localStorage + sort data
+  loadHistoryFromServer().then(() => {
+    window._serverPlayHistory = getHistory().map(h => ({ trickId: h.path, lastPlayedAt: new Date(h.time).toISOString() }));
+  }).catch(() => {});
 })();
 
 // ── Detail Controls ──
@@ -3134,11 +3164,27 @@ $('#rewindBtn').onclick = () => {
 $('#forwardBtn').onclick = () => {
   const v = $('#video');
   if (!v.src) return;
+  if (_ffJustReleased) { _ffJustReleased = false; return; }
   v.currentTime = Math.min(v.duration || 0, (v.currentTime || 0) + 5);
 };
 // ── 2x 倍速（长按 forwardBtn 或键盘 →） ──
 let _ffTimer = null;
 let _ffActive = false;
+let _ffLocked = false;
+let _ffJustReleased = false;
+
+function _setFFOn(v) {
+  v.playbackRate = 2.0;
+  if (v.paused) v.play().catch(() => {});
+  const btn = $('#forwardBtn');
+  if (btn) { btn.textContent = '2x'; btn.classList.add('ff-on'); }
+}
+
+function _setFFOff(v) {
+  v.playbackRate = 1.0;
+  const btn = $('#forwardBtn');
+  if (btn) { btn.textContent = '›'; btn.classList.remove('ff-on'); }
+}
 
 function startFF() {
   const v = $('#video');
@@ -3147,10 +3193,7 @@ function startFF() {
   _ffTimer = setTimeout(() => {
     _ffTimer = null;
     _ffActive = true;
-    v.playbackRate = 2.0;
-    if (v.paused) v.play().catch(() => {});
-    const ind = $('#speedIndicator');
-    if (ind) ind.style.display = '';
+    _setFFOn(v);
   }, 200);
 }
 
@@ -3159,12 +3202,24 @@ function stopFF() {
     clearTimeout(_ffTimer);
     _ffTimer = null;
   }
-  if (_ffActive) {
+  if (_ffActive && !_ffLocked) {
     _ffActive = false;
+    _ffJustReleased = true;
     const v = $('#video');
-    if (v) v.playbackRate = 1.0;
-    const ind = $('#speedIndicator');
-    if (ind) ind.style.display = 'none';
+    if (v) _setFFOff(v);
+  }
+}
+
+function toggleFFLock() {
+  const v = $('#video');
+  if (!v || !v.src) return;
+  _ffLocked = !_ffLocked;
+  if (_ffLocked) {
+    _ffActive = true;
+    _setFFOn(v);
+  } else {
+    _ffActive = false;
+    _setFFOff(v);
   }
 }
 
@@ -3173,6 +3228,7 @@ $('#forwardBtn').addEventListener('mouseup', stopFF);
 $('#forwardBtn').addEventListener('mouseleave', stopFF);
 $('#forwardBtn').addEventListener('touchstart', startFF, {passive: true});
 $('#forwardBtn').addEventListener('touchend', stopFF);
+$('#forwardBtn').addEventListener('contextmenu', e => { e.preventDefault(); toggleFFLock(); });
 $('#playPauseBtn').onclick = () => {
   const v = $('#video');
   if (!v.src) return;

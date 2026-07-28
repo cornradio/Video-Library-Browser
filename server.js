@@ -108,6 +108,11 @@ function multerErrHandler(err, req, res, next) {
 // ── App ──
 const app = express();
 app.use(express.json({ limit: '10mb' }));
+
+// Root → server browsing mode (most used)
+app.get('/', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'server.html')));
+app.get('/server.html', (_req, res) => res.redirect(301, '/'));
+
 app.use(express.static(PUBLIC_DIR));
 app.use('/uploads', express.static(UPLOADS));
 
@@ -942,6 +947,11 @@ app.post('/api/play-history', (req, res) => {
   history.sort((a, b) => new Date(b.lastPlayedAt) - new Date(a.lastPlayedAt));
   if (history.length > 200) history = history.slice(0, 200);
   writePlayHistory(history);
+  res.json({ success: true });
+});
+
+app.delete('/api/play-history', (_req, res) => {
+  writePlayHistory([]);
   res.json({ success: true });
 });
 
