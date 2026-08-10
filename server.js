@@ -8,6 +8,7 @@ const { exec, execFile, spawn } = require('child_process');
 const { randomUUID } = require('crypto');
 
 const PORT = process.env.PORT || process.argv[2] || 3000;
+const RESTART_DELAY = parseInt(process.env.RESTART_DELAY || '0', 10);
 const BASE = process.pkg ? path.dirname(process.execPath) : __dirname;
 const UPLOADS = path.join(BASE, 'uploads');
 const PUBLIC_DIR = process.pkg ? path.join(__dirname, 'public') : path.join(BASE, 'public');
@@ -605,6 +606,31 @@ app.post('/api/local/release', (req, res) => {
   // Also let any pending thumbnail queue drain (they don't hold open files long)
   // The point is to release file handles held by video streaming
   res.json({ released: killed, message: killed > 0 ? `已释放 ${killed} 个文件句柄` : '没有需要释放的文件句柄' });
+});
+
+// ── Restart the Node.js process to truly release all file handles ──
+app.post('/api/restart', (req, res) => {
+  let killed = 0;
+  for (const [filePath, set] of openStreams) {
+    for (const s of set) {
+      try { s.stream.destroy(); } catch {}
+      try { s.res.end(); } catch {}
+      killed++;
+    }
+  }
+  openStreams.clear();
+  res.json({ success: true, released: killed, message: '服务器正在重启以释放占用...' });
+  try {
+    const child = spawn(process.argv[0], process.argv.slice(1), {
+      cwd: process.cwd(),
+      env: { ...process.env, RESTART_DELAY: '1500' },
+      stdio: 'inherit'
+    });
+    child.on('error', (err) => console.error('[restart] spawn error:', err));
+  } catch (e) {
+    console.error('[restart] failed to spawn:', e);
+  }
+  setTimeout(() => process.exit(0), 300);
 });
 
 // ── Subtitle file ──
@@ -1866,10 +1892,11 @@ app.get('/api/convert/batch', (req, res) => {
   next();
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  const wl = readWhitelist();
-  const localUrl = `http://localhost:${PORT}`;
-  console.log(`Tricks Collection running at ${localUrl}`);
+function startServer() {
+  app.listen(PORT, '0.0.0.0', () => {
+    const wl = readWhitelist();
+    const localUrl = `http://localhost:${PORT}`;
+    console.log(`Tricks Collection running at ${localUrl}`);
   if (wl.length > 0) {
     console.log(`[whitelist] active (${wl.length} directories):`);
     wl.forEach(d => console.log('  -', d));
@@ -1922,4 +1949,12 @@ app.listen(PORT, '0.0.0.0', () => {
   } catch (e) {
     console.log('[tray] systray not available:', e.message);
   }
-});
+  });
+}
+
+if (RESTART_DELAY > 0) {
+  console.log(`[restart] waiting ${RESTART_DELAY}ms before binding port ${PORT}...`);
+  setTimeout(startServer, RESTART_DELAY);
+} else {
+  startServer();
+}

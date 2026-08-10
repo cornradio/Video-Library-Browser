@@ -238,21 +238,21 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .mode-dropdown a.active{color:var(--accent);font-weight:600}
 .mode-dropdown .mode-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
 
-/* ── Sort dropdown ── */
-.sort-wrap{position:relative}
-.sort-btn{background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;transition:background .15s;font-family:inherit}
-.sort-btn:hover{background:var(--card);color:var(--text)}
-.sort-drop{display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:60;white-space:nowrap}
-.sort-drop.show{display:block}
-.sort-drop button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text2);padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .1s}
-.sort-drop button:hover{background:rgba(255,255,255,.06);color:var(--text)}
-.sort-drop button.active{color:var(--accent);font-weight:600}
+/* ── Inline segmented sort ── */
+.sort-wrap{display:inline-flex;align-items:center;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--card)}
+.sort-seg{padding:4px 8px;font-size:12px;color:var(--text2);cursor:pointer;border-right:1px solid var(--border);transition:all .15s;background:none;user-select:none;white-space:nowrap}
+.sort-seg:last-child{border-right:none}
+.sort-seg:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.sort-seg.active{color:var(--accent);background:var(--accent-dim);font-weight:600}
+.mobile-search-input,.mobile-sort-wrap{display:none}
+.mobile-sort-wrap{gap:6px;flex-wrap:wrap;padding:4px 0}
+.mobile-sort-wrap .sort-seg{border:1px solid var(--border);border-radius:4px;background:var(--bg);font-size:13px;padding:6px 10px}
 
 /* ── Responsive ── */
 @media(max-width:768px){
   .hamburger{display:block}
   .mobile-more-btn{display:block}
-  .header .github-btn,.header .upload-icon-btn,.header .history-btn,.header .help-btn{display:none}
+  .header .github-btn,.header .upload-icon-btn,.header .help-btn{display:none}
   .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
@@ -260,7 +260,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
   .main{padding:16px 12px 0}
   .grid{grid-template-columns:1fr}
-  .search-input{flex:1;width:auto;min-width:0;font-size:13px;padding:6px 10px}
+  #searchInput,.sort-wrap{display:none}
+  .mobile-search-input{display:block;width:calc(100% - 32px);margin:6px 16px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+  .mobile-search-input:focus{border-color:var(--accent)}
+  .mobile-sort-wrap{display:flex;margin:6px 16px}
   .detail-topbar{flex-wrap:wrap}
   .detail-topbar .btn-sm{padding:5px 8px;font-size:11px}
   .history-panel{width:calc(100vw - 16px);max-width:420px}
@@ -336,15 +339,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <a href="/resources.html"><span class="mode-icon">📦</span>资源获取</a>
   </div>
   <input type="text" id="searchInput" class="search-input" placeholder="搜索文件名..." autocomplete="off">
-  <div class="sort-wrap">
-    <button class="sort-btn" id="sortBtn">&#8597; 排序</button>
-    <div class="sort-drop" id="sortDrop">
-      <button data-sort="name_asc">名称 A → Z</button>
-      <button data-sort="name_desc">名称 Z → A</button>
-      <button data-sort="time_desc">时间 新→旧</button>
-      <button data-sort="time_asc">时间 旧→新</button>
-      <button data-sort="recent">最近播放</button>
-    </div>
+  <div class="sort-wrap" id="sortWrap">
+    <span class="sort-seg" data-sort="name_asc">A-Z</span>
+    <span class="sort-seg" data-sort="name_desc">Z-A</span>
+    <span class="sort-seg" data-sort="time_desc">新</span>
+    <span class="sort-seg" data-sort="time_asc">旧</span>
+    <span class="sort-seg" data-sort="recent">最近</span>
   </div>
   <div id="currentSortLabel" style="font-size:11px;color:var(--accent);font-weight:600;margin-left:4px;white-space:nowrap"></div>
   <div style="flex:1"></div>
@@ -391,9 +391,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   </div>
   <button class="mobile-more-btn" id="mobileMoreBtn">&#8942;</button>
   <div class="mobile-more-menu" id="mobileMoreMenu">
+    <input type="text" id="mobileSearchInput" class="mobile-search-input" placeholder="搜索文件名..." autocomplete="off">
+    <div class="mobile-sort-wrap" id="mobileSortWrap">
+      <span class="sort-seg" data-sort="name_asc">A-Z</span>
+      <span class="sort-seg" data-sort="name_desc">Z-A</span>
+      <span class="sort-seg" data-sort="time_desc">新</span>
+      <span class="sort-seg" data-sort="time_asc">旧</span>
+      <span class="sort-seg" data-sort="recent">最近</span>
+    </div>
     <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a>
     <button id="mobileUploadBtn">上传视频</button>
-    <button id="mobileHistoryBtn">播放历史</button>
     <button id="mobileHelpBtn">资源导航</button>
   </div>
 </div>
@@ -597,26 +604,23 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ── Sort dropdown ──
-$('#sortBtn').onclick = (e) => {
-  e.stopPropagation();
-  $('#sortDrop').classList.toggle('show');
-};
-document.addEventListener('click', (e) => {
-  if (!$('#sortDrop').contains(e.target) && !$('#sortBtn').contains(e.target)) {
-    $('#sortDrop').classList.remove('show');
-  }
-});
-$('#sortDrop').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-sort]');
-  if (!btn) return;
-  S.sortBy = btn.dataset.sort;
+// ── Inline segmented sort ──
+function setSort(value) {
+  if (!['name_asc','name_desc','time_asc','time_desc','recent'].includes(value)) return;
+  S.sortBy = value;
   localStorage.setItem('serverSortBy', S.sortBy);
-  $('#sortDrop').querySelectorAll('button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  $('#sortDrop').classList.remove('show');
+  document.querySelectorAll('#sortWrap .sort-seg, #mobileSortWrap .sort-seg').forEach(s => {
+    s.classList.toggle('active', s.dataset.sort === value);
+  });
   if (S.currentFolderPath) showVideosForFolder(S.currentFolderPath);
   updateSortLabel();
+}
+[$('#sortWrap'), $('#mobileSortWrap')].forEach(wrap => {
+  wrap.addEventListener('click', (e) => {
+    const seg = e.target.closest('.sort-seg[data-sort]');
+    if (!seg) return;
+    setSort(seg.dataset.sort);
+  });
 });
 
 function sortVideos(arr) {
@@ -706,14 +710,28 @@ $('#releaseBtn').onclick = async () => {
   $('#refreshBtn').style.display = 'none';
   $('#releaseBtn').style.display = 'none';
   if (whitelistDirs.length > 0) $('#whitelistSelect').style.display = 'block';
-  // Call server to release all Node.js file handles
+  // Ask server to restart and truly release all file handles
   try {
-    const r = await fetch('/api/local/release', { method: 'POST' });
+    const r = await fetch('/api/restart', { method: 'POST' });
     const d = await r.json();
-    toast(d.message || '已解除占用');
+    toast(d.message || '服务器正在重启...');
   } catch {
-    toast('已解除占用（前端）');
+    toast('服务器正在重启...');
   }
+  // Wait for the new process to bind the port, then reload
+  setTimeout(() => {
+    const tryReload = async () => {
+      for (let i = 0; i < 20; i++) {
+        try {
+          const res = await fetch('/api/categories', { method: 'GET' });
+          if (res.ok) { location.reload(); return; }
+        } catch {}
+        await new Promise(r => setTimeout(r, 500));
+      }
+      location.reload();
+    };
+    tryReload();
+  }, 1500);
 };
 
 async function refreshCurrentFolder(showToast = true) {
@@ -1005,6 +1023,7 @@ function showVideosForFolder(folderPath) {
   if (S.cardObserver) { S.cardObserver.disconnect(); S.cardObserver = null; }
   S.lastBrowsePath = folderPath;
   $('#searchInput').value = '';
+  $('#mobileSearchInput').value = '';
   const folder = findFolder(S.tree, folderPath);
   if (!folder) return;
   const videos = getAllVideos(folder);
@@ -1307,7 +1326,10 @@ function filterGrid(query) {
   loadClipCounts();
 }
 
-$('#searchInput').oninput = () => filterGrid($('#searchInput').value);
+$('#searchInput').oninput = () => {
+  $('#mobileSearchInput').value = $('#searchInput').value;
+  filterGrid($('#searchInput').value);
+};
 
 // ── Thumbnail time slider & refresh ──
 let thumbTimeSaveTimer = null;
@@ -2799,13 +2821,13 @@ document.addEventListener('click', () => {
   $('#mobileMoreMenu').classList.remove('show');
 });
 $('#mobileMoreMenu').onclick = (e) => e.stopPropagation();
-$('#mobileHistoryBtn').onclick = () => {
-  $('#mobileMoreMenu').classList.remove('show');
-  $('#historyBtn').click();
-};
 $('#mobileHelpBtn').onclick = () => {
   $('#mobileMoreMenu').classList.remove('show');
   $('#helpBtn').click();
+};
+$('#mobileSearchInput').oninput = () => {
+  $('#searchInput').value = $('#mobileSearchInput').value;
+  filterGrid($('#searchInput').value);
 };
 
 // ── History ──
@@ -3142,12 +3164,10 @@ function updateSortLabel() {
   const saved = localStorage.getItem('serverSortBy');
   if (saved && ['name_asc','name_desc','time_asc','time_desc','recent'].includes(saved)) {
     S.sortBy = saved;
-    const btn = document.querySelector('#sortDrop button[data-sort="' + saved + '"]');
-    if (btn) {
-      document.querySelectorAll('#sortDrop button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
   }
+  document.querySelectorAll('#sortWrap .sort-seg, #mobileSortWrap .sort-seg').forEach(s => {
+    s.classList.toggle('active', s.dataset.sort === S.sortBy);
+  });
   updateSortLabel();
   // Load server play history (source of truth) — populates localStorage + sort data
   loadHistoryFromServer().then(() => {
