@@ -999,6 +999,23 @@ app.delete('/api/play-history', (_req, res) => {
   res.json({ success: true });
 });
 
+// Delete all play-history entries inside a given folder
+app.delete('/api/play-history/folder', (req, res) => {
+  const folderPath = req.query.path;
+  if (!folderPath) return res.status(400).json({ error: '缺少路径' });
+  const norm = String(folderPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  function dirOf(p) {
+    const n = String(p).replace(/\\/g, '/');
+    const idx = n.lastIndexOf('/');
+    return idx > 0 ? n.slice(0, idx) : '';
+  }
+  let history = readPlayHistory();
+  const before = history.length;
+  history = history.filter(h => dirOf(h.trickId) !== norm);
+  writePlayHistory(history);
+  res.json({ success: true, removed: before - history.length });
+});
+
 // ════════════════════════════
 //  Play History Exclude API
 // ════════════════════════════

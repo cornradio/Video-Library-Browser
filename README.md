@@ -28,6 +28,12 @@ node server.js 6688
 PORT=6688 npm start
 ```
 
+## linux快速部署
+node .\pack.js 
+上传video-tricks.zip
+echo A | unzip videos-tricks.zip
+sudo fuser -k -9 6688/tcp
+node server.js 6688
 
 ## 三个页面
 

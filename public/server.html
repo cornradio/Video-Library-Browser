@@ -194,6 +194,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .history-group-toggle{font-size:10px;color:var(--text3);transition:transform .15s}
 .history-group.collapsed .history-group-toggle{transform:rotate(-90deg)}
 .history-group.collapsed .history-group-body{display:none}
+.history-group-del{background:none;border:none;color:var(--text3);font-size:14px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px;font-family:inherit}
+.history-group-del:hover{color:var(--red);background:rgba(255,80,80,.12)}
 .history-group-body{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px}
 .history-card{cursor:pointer;border-radius:8px;overflow:hidden;border:1px solid var(--border);transition:border-color .15s;background:var(--card)}
 .history-card:hover{border-color:#666}
@@ -1565,7 +1567,19 @@ function openDetail(file, noPush) {
     v.src = '/api/local/stream?path=' + encodeURIComponent(file.path);
     v.load();
     v.play().catch(() => {});
-    v.oncanplay = () => { v.style.opacity = '1'; _ffLocked = false; _ffActive = false; _setFFOff(v); v.oncanplay = null; };
+    v.oncanplay = () => {
+      v.style.opacity = '1';
+      _ffLocked = false; _ffActive = false; _setFFOff(v);
+      _revLocked = false; _revActive = false; _setRevOff(v);
+      // Resume from saved playback position
+      try {
+        const entry = getHistory().find(h => h.path === file.path);
+        const p = entry ? (entry.progress || 0) : 0;
+        const dur = v.duration || 0;
+        if (p > 5 && (!dur || p < dur - 15)) v.currentTime = p;
+      } catch {}
+      v.oncanplay = null;
+    };
   }
 
   // Drag handle: resize container vertically (persisted) — works for both video & image
@@ -2955,11 +2969,16 @@ async function loadHistoryFromServer() {
       path: h.trickId,
       name: h.trickName || h.trickId.split(/[/\\]/).pop(),
       thumb: `/api/local/thumbnail?path=${encodeURIComponent(h.trickId)}`,
-      time: new Date(h.lastPlayedAt).getTime()
+      time: new Date(h.lastPlayedAt).getTime(),
+      progress: h.progress || 0
     })).filter(h => !isHistoryExcludedClient(h.path));
-    // Also keep local-only entries (from other sources) at the end
+    // Also keep local-only entries; if local is newer, prefer its progress/time
     for (const h of localHistory) {
-      if (!isHistoryExcludedClient(h.path) && !merged.find(m => m.path === h.path)) {
+      if (isHistoryExcludedClient(h.path)) continue;
+      const m = merged.find(x => x.path === h.path);
+      if (m) {
+        if ((h.time || 0) > (m.time || 0)) { m.time = h.time; m.progress = h.progress || 0; }
+      } else {
         merged.push(h);
       }
     }
@@ -2971,10 +2990,29 @@ async function loadHistoryFromServer() {
 
 function addHistory(file) {
   if (isHistoryExcludedClient(file.path)) return;
-  let history = getHistory().filter(h => h.path !== file.path);
-  history.unshift({ path: file.path, name: file.name, thumb: `/api/local/thumbnail?path=${encodeURIComponent(file.path)}`, time: Date.now() });
+  let history = getHistory();
+  const existing = history.find(h => h.path === file.path);
+  history = history.filter(h => h.path !== file.path);
+  history.unshift({ path: file.path, name: file.name, thumb: `/api/local/thumbnail?path=${encodeURIComponent(file.path)}`, time: Date.now(), progress: existing ? (existing.progress || 0) : 0 });
   if (history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+function updateHistoryProgress(filePath, progress) {
+  const history = getHistory();
+  const h = history.find(x => x.path === filePath);
+  if (h) {
+    h.progress = progress || 0;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
+}
+
+function deleteHistoryFolder(folderPath) {
+  const norm = String(folderPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const history = getHistory().filter(h => fileFolderPath(h.path) !== norm);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  renderHistory();
+  fetch('/api/play-history/folder?path=' + encodeURIComponent(folderPath), { method: 'DELETE' }).catch(() => {});
 }
 
 function formatRelativeTime(ts) {
@@ -3012,6 +3050,7 @@ function renderHistory() {
       <div class="history-group-head">
         <span class="history-group-name" title="${g.folderPath}">${g.folderName}</span>
         <span class="history-group-count">${g.items.length}</span>
+        <button class="history-group-del" data-folder="${g.folderPath}" title="删除该文件夹的播放记录">&times;</button>
         <span class="history-group-toggle">▼</span>
       </div>
       <div class="history-group-body">
@@ -3019,7 +3058,7 @@ function renderHistory() {
           <div class="history-card" data-path="${h.path}">
             <div class="history-card-media"><img src="${h.thumb}" alt="" loading="lazy" onerror="this.style.display='none'"></div>
             <div class="history-card-name" title="${h.name}">${h.name}</div>
-            <div class="history-card-time">${formatRelativeTime(h.time)}</div>
+            <div class="history-card-time">${(h.progress || 0) > 5 ? '看到 ' + fmtTime(h.progress) + ' · ' : ''}${formatRelativeTime(h.time)}</div>
           </div>
         `).join('')}
       </div>
@@ -3027,6 +3066,15 @@ function renderHistory() {
   `).join('');
   grid.querySelectorAll('.history-group-head').forEach(head => {
     head.onclick = () => head.closest('.history-group').classList.toggle('collapsed');
+  });
+  grid.querySelectorAll('.history-group-del').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const folder = btn.dataset.folder;
+      if (!confirm(`删除「${folderNameFromPath(folder)}」的播放记录？`)) return;
+      deleteHistoryFolder(folder);
+      toast('已删除该文件夹的播放记录');
+    };
   });
   grid.querySelectorAll('.history-card').forEach(card => {
     card.onclick = () => {
@@ -3308,6 +3356,7 @@ function updateSortLabel() {
 $('#rewindBtn').onclick = () => {
   const v = $('#video');
   if (!v.src) return;
+  if (_revJustReleased) { _revJustReleased = false; return; }
   v.currentTime = Math.max(0, (v.currentTime || 0) - 5);
 };
 $('#forwardBtn').onclick = () => {
@@ -3339,6 +3388,7 @@ function startFF() {
   const v = $('#video');
   if (!v || !v.src || !v.duration) return;
   if (_ffTimer || _ffActive) return;
+  if (_revActive && !_revLocked) stopRev();
   _ffTimer = setTimeout(() => {
     _ffTimer = null;
     _ffActive = true;
@@ -3378,9 +3428,100 @@ $('#forwardBtn').addEventListener('mouseleave', stopFF);
 $('#forwardBtn').addEventListener('touchstart', startFF, {passive: true});
 $('#forwardBtn').addEventListener('touchend', stopFF);
 $('#forwardBtn').addEventListener('contextmenu', e => { e.preventDefault(); toggleFFLock(); });
+
+// ── 1x 倒放（长按 rewindBtn） ──
+let _revTimer = null;
+let _revActive = false;
+let _revLocked = false;
+let _revJustReleased = false;
+let _revRaf = null;
+let _revLastTime = 0;
+let _revWasPlaying = false;
+
+function _revStep(now) {
+  const v = $('#video');
+  if (!v || !_revActive) return;
+  const dt = (now - _revLastTime) / 1000;
+  _revLastTime = now;
+  const t = Math.max(0, (v.currentTime || 0) - dt);
+  try { v.currentTime = t; } catch {}
+  if (t <= 0) {
+    _revActive = false;
+    _revJustReleased = true;
+    _setRevOff(v);
+    return;
+  }
+  _revRaf = requestAnimationFrame(_revStep);
+}
+
+function _setRevOn(v) {
+  _revWasPlaying = !v.paused;
+  v.pause();
+  v.playbackRate = 1.0;
+  _revLastTime = performance.now();
+  if (_revRaf) cancelAnimationFrame(_revRaf);
+  _revRaf = requestAnimationFrame(_revStep);
+  const btn = $('#rewindBtn');
+  if (btn) { btn.textContent = '1x'; btn.classList.add('ff-on'); }
+}
+
+function _setRevOff(v) {
+  if (_revRaf) { cancelAnimationFrame(_revRaf); _revRaf = null; }
+  v.playbackRate = 1.0;
+  const btn = $('#rewindBtn');
+  if (btn) { btn.textContent = '‹'; btn.classList.remove('ff-on'); }
+  if (_revWasPlaying) v.play().catch(() => {});
+}
+
+function startRev() {
+  const v = $('#video');
+  if (!v || !v.src || !v.duration) return;
+  if (_revTimer || _revActive) return;
+  if (_ffActive && !_ffLocked) stopFF();
+  _revTimer = setTimeout(() => {
+    _revTimer = null;
+    _revActive = true;
+    _setRevOn(v);
+  }, 200);
+}
+
+function stopRev() {
+  if (_revTimer) {
+    clearTimeout(_revTimer);
+    _revTimer = null;
+  }
+  if (_revActive && !_revLocked) {
+    _revActive = false;
+    _revJustReleased = true;
+    const v = $('#video');
+    if (v) _setRevOff(v);
+  }
+}
+
+function toggleRevLock() {
+  const v = $('#video');
+  if (!v || !v.src) return;
+  _revJustReleased = false;
+  _revLocked = !_revLocked;
+  if (_revLocked) {
+    _revActive = true;
+    _setRevOn(v);
+  } else {
+    _revActive = false;
+    _setRevOff(v);
+  }
+}
+
+$('#rewindBtn').addEventListener('mousedown', startRev);
+$('#rewindBtn').addEventListener('mouseup', stopRev);
+$('#rewindBtn').addEventListener('mouseleave', stopRev);
+$('#rewindBtn').addEventListener('touchstart', startRev, {passive: true});
+$('#rewindBtn').addEventListener('touchend', stopRev);
+$('#rewindBtn').addEventListener('contextmenu', e => { e.preventDefault(); toggleRevLock(); });
 $('#playPauseBtn').onclick = () => {
   const v = $('#video');
   if (!v.src) return;
+  if (_revActive) { _revActive = false; _revLocked = false; _setRevOff(v); }
   if (v.paused) { v.play().catch(() => {}); $('#playPauseBtn').textContent = '⏸'; }
   else { v.pause(); $('#playPauseBtn').textContent = '▶'; }
 };
@@ -3389,6 +3530,7 @@ document.addEventListener('play', e => { if (e.target === $('#video')) $('#playP
 document.addEventListener('pause', e => { if (e.target === $('#video')) $('#playPauseBtn').textContent = '▶'; }, true);
 
 // ── Time label update in detail view ──
+let _lastProgressSync = 0;
 {
   const v = $('#video');
   if (v) {
@@ -3397,6 +3539,15 @@ document.addEventListener('pause', e => { if (e.target === $('#video')) $('#play
       const dur = this.duration || 0;
       const label = $('#playTimeLabel');
       if (label) label.textContent = fmtTime(ct) + ' / ' + fmtTime(dur);
+      // Record playback position every 5s (skip clip loop / preview)
+      if (S.curFile && S.curFile.type !== 'image' && !S.playingClipId && !previewActive) {
+        const now = Date.now();
+        if (now - _lastProgressSync > 5000) {
+          _lastProgressSync = now;
+          updateHistoryProgress(S.curFile.path, ct);
+          syncPlayHistoryToServer(S.curFile, ct);
+        }
+      }
     });
   }
 }
@@ -3410,10 +3561,12 @@ function fmtTime(s) {
 // ── Play history sync to server ──
 function syncPlayHistoryToServer(file, progress) {
   if (isHistoryExcludedClient(file.path)) return;
+  const body = { trickId: file.path, trickName: file.name };
+  if (progress !== undefined) body.progress = progress;
   fetch('/api/play-history', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ trickId: file.path, trickName: file.name, progress: progress || 0 })
+    body: JSON.stringify(body)
   }).catch(() => {});
 }
 // Hook into openDetail to also sync to server
@@ -3428,10 +3581,27 @@ function syncPlayHistoryToServer(file, progress) {
   $('#backBtn').onclick = function(e) {
     if (S.curFile) {
       const v = $('#video');
-      syncPlayHistoryToServer(S.curFile, v ? v.currentTime || 0 : 0);
+      const ct = v ? v.currentTime || 0 : 0;
+      updateHistoryProgress(S.curFile.path, ct);
+      syncPlayHistoryToServer(S.curFile, ct);
     }
     if (_origBack) _origBack.call(this, e);
   };
+  // Save position when the page is closed
+  window.addEventListener('pagehide', () => {
+    if (!S.curFile || S.curFile.type === 'image') return;
+    if (isHistoryExcludedClient(S.curFile.path)) return;
+    const v = $('#video');
+    if (!v || !(v.currentTime > 0)) return;
+    try {
+      fetch('/api/play-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trickId: S.curFile.path, trickName: S.curFile.name, progress: v.currentTime || 0 }),
+        keepalive: true
+      });
+    } catch {}
+  });
 })();
 
 // ── Sidebar Collapse (large screen) ──
