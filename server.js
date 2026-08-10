@@ -941,12 +941,29 @@ app.post('/api/resource-links', (req, res) => {
 //  Play History API
 // ════════════════════════════
 const PLAY_HISTORY_FILE = path.join(BASE, 'data', 'play-history.json');
+const HISTORY_EXCLUDE_FILE = path.join(BASE, 'data', 'history-exclude.json');
 
 function readPlayHistory() {
   try { return JSON.parse(fs.readFileSync(PLAY_HISTORY_FILE, 'utf-8')); }
   catch { return []; }
 }
 function writePlayHistory(d) { fs.writeFileSync(PLAY_HISTORY_FILE, JSON.stringify(d, null, 2)); }
+
+function readHistoryExclude() {
+  try { return JSON.parse(fs.readFileSync(HISTORY_EXCLUDE_FILE, 'utf-8')); }
+  catch { return []; }
+}
+function writeHistoryExclude(d) { fs.writeFileSync(HISTORY_EXCLUDE_FILE, JSON.stringify(d, null, 2)); }
+
+function isHistoryExcluded(filePath) {
+  const excludes = readHistoryExclude();
+  if (!Array.isArray(excludes) || !excludes.length) return false;
+  const norm = filePath.replace(/\\/g, '/');
+  return excludes.some(ex => {
+    const e = String(ex).replace(/\\/g, '/').replace(/\/+$/, '');
+    return norm === e || norm.startsWith(e + '/');
+  });
+}
 
 app.get('/api/play-history', (_req, res) => {
   res.json(readPlayHistory());
@@ -955,6 +972,7 @@ app.get('/api/play-history', (_req, res) => {
 app.post('/api/play-history', (req, res) => {
   const { trickId, trickName, progress } = req.body;
   if (!trickId) return res.status(400).json({ error: '缺少 trickId' });
+  if (isHistoryExcluded(trickId)) return res.json({ success: true, excluded: true });
   let history = readPlayHistory();
   const existing = history.find(h => h.trickId === trickId);
   if (existing) {
@@ -979,6 +997,33 @@ app.post('/api/play-history', (req, res) => {
 app.delete('/api/play-history', (_req, res) => {
   writePlayHistory([]);
   res.json({ success: true });
+});
+
+// ════════════════════════════
+//  Play History Exclude API
+// ════════════════════════════
+app.get('/api/history-exclude', (_req, res) => {
+  res.json(readHistoryExclude());
+});
+
+app.post('/api/history-exclude', (req, res) => {
+  const { action, path: folderPath } = req.body || {};
+  if (!folderPath || !['add', 'remove'].includes(action)) {
+    return res.status(400).json({ error: '参数不完整' });
+  }
+  if (!pathIsAllowed(folderPath)) {
+    return res.status(403).json({ error: '该路径不在白名单中' });
+  }
+  let excludes = readHistoryExclude();
+  if (!Array.isArray(excludes)) excludes = [];
+  const norm = path.resolve(folderPath);
+  if (action === 'add') {
+    if (!excludes.includes(norm)) excludes.push(norm);
+  } else if (action === 'remove') {
+    excludes = excludes.filter(p => p !== norm);
+  }
+  writeHistoryExclude(excludes);
+  res.json({ success: true, excludes });
 });
 
 // Server-side file operations

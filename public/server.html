@@ -185,14 +185,28 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .history-head span{font-size:14px;color:var(--text);font-weight:600}
 .history-clear{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 10px;border-radius:4px;transition:all .15s}
 .history-clear:hover{color:var(--accent);background:var(--accent-dim)}
-.history-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.history-card{cursor:pointer;border-radius:8px;overflow:hidden;border:1px solid var(--border);transition:border-color .15s}
+.history-grid{display:flex;flex-direction:column;gap:10px}
+.history-group{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.02)}
+.history-group-head{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;background:rgba(255,255,255,.04);user-select:none}
+.history-group-head:hover{background:rgba(255,255,255,.06)}
+.history-group-name{flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history-group-count{font-size:10px;color:var(--text3);background:var(--bg);padding:1px 6px;border-radius:10px}
+.history-group-toggle{font-size:10px;color:var(--text3);transition:transform .15s}
+.history-group.collapsed .history-group-toggle{transform:rotate(-90deg)}
+.history-group.collapsed .history-group-body{display:none}
+.history-group-body{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px}
+.history-card{cursor:pointer;border-radius:8px;overflow:hidden;border:1px solid var(--border);transition:border-color .15s;background:var(--card)}
 .history-card:hover{border-color:#666}
 .history-card-media{aspect-ratio:16/9;background:#0a0a0a;position:relative;overflow:hidden}
 .history-card-media img{width:100%;height:100%;object-fit:cover;display:block}
 .history-card-name{font-size:12px;padding:6px 8px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .history-card-time{font-size:10px;color:var(--text3);padding:0 8px 6px}
 .history-empty{text-align:center;padding:40px 10px;color:var(--text3);font-size:13px}
+.exclude-list{display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;margin-top:6px}
+.exclude-item{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--text2);background:var(--bg);padding:5px 8px;border-radius:4px}
+.exclude-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exclude-item button{background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer}
+.exclude-item button:hover{color:var(--accent);border-color:var(--accent)}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;z-index:200;opacity:0;transition:all .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -386,6 +400,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
           <input type="number" id="fsHideDelayInput" class="fs-delay-input" value="2.5" min="0" max="30" step="0.5">
           <span class="fs-delay-unit">秒 (0=不隐藏)</span>
         </div>
+        <div class="help-shortcut" style="align-items:flex-start;flex-direction:column;gap:4px">
+          <span>排除文件夹（不记录历史）</span>
+          <div class="exclude-list" id="excludeList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -477,7 +495,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         </div>
       </div>
       <div id="speedIndicator" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);color:var(--accent);font-size:13px;font-weight:700;padding:6px 18px;border-radius:20px;border:1px solid var(--accent);letter-spacing:1px;white-space:nowrap;z-index:999;pointer-events:none">2x 倍速</div>
-    </div>
       <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span><span id="detailNameText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         <button class="ctrl-btn" id="rewindBtn" title="后退5秒">‹</button>
         <button class="ctrl-btn" id="playPauseBtn" title="播放/暂停">▶</button>
@@ -536,6 +553,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 <div class="ctx-menu" id="folderCtxMenu">
   <div class="ctx-item" id="folderCtxNewSub">新建子文件夹</div>
   <div class="ctx-item" id="folderCtxRename">重命名</div>
+  <div class="ctx-item" id="folderCtxExclude">排除该文件夹</div>
   <div class="ctx-item danger" id="folderCtxDelete">删除文件夹</div>
 </div>
 
@@ -1712,6 +1730,8 @@ function openDetail(file, noPush) {
     $('#clipAddPanel').style.display = 'none';
     resetClipForm();
     loadClips();
+    const clipsSection = document.querySelector('.clips-section');
+    if (clipsSection) clipsSection.style.display = '';
   } else {
     $('#clipAddPanel').style.display = 'none';
     const clipsSection = document.querySelector('.clips-section');
@@ -2499,6 +2519,8 @@ function showFolderCtxMenu(x, y, folderPath) {
   const m = $('#folderCtxMenu'); m.classList.add('show');
   m.style.left = Math.min(x, window.innerWidth - 130) + 'px';
   m.style.top = Math.min(y, window.innerHeight - 100) + 'px';
+  const excluded = isHistoryExcludedClient(folderPath);
+  $('#folderCtxExclude').textContent = excluded ? '取消排除该文件夹' : '排除该文件夹';
 }
 
 $('#folderCtxNewSub').onclick = async () => {
@@ -2558,6 +2580,15 @@ $('#folderCtxRename').onclick = async () => {
     showVideosForFolder(S.selPath);
     toast('已重命名');
   } catch (e) { toast('重命名失败: ' + e.message); }
+};
+
+$('#folderCtxExclude').onclick = async () => {
+  if (!ctxFolderPath) return;
+  const excluded = isHistoryExcludedClient(ctxFolderPath);
+  const ok = excluded ? await removeHistoryExclude(ctxFolderPath) : await addHistoryExclude(ctxFolderPath);
+  if (ok) toast(excluded ? '已取消排除' : '已排除该文件夹，不再记录历史');
+  else toast('操作失败');
+  $('#folderCtxMenu').classList.remove('show');
 };
 
 $('#folderCtxDelete').onclick = async () => {
@@ -2833,10 +2864,84 @@ $('#mobileSearchInput').oninput = () => {
 // ── History ──
 const HISTORY_MAX = 30;
 const HISTORY_KEY = 'videoHistory';
+let historyExcludes = [];
 
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
   catch { return []; }
+}
+
+function fileFolderPath(filePath) {
+  const p = filePath.replace(/\\/g, '/');
+  const idx = p.lastIndexOf('/');
+  return idx > 0 ? p.slice(0, idx) : p;
+}
+function folderNameFromPath(folderPath) {
+  const p = folderPath.replace(/\\/g, '/');
+  const parts = p.split('/').filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : folderPath;
+}
+
+function isHistoryExcludedClient(filePath) {
+  if (!historyExcludes.length) return false;
+  const norm = filePath.replace(/\\/g, '/');
+  return historyExcludes.some(ex => {
+    const e = String(ex).replace(/\\/g, '/').replace(/\/+$/, '');
+    return norm === e || norm.startsWith(e + '/');
+  });
+}
+
+async function loadHistoryExcludes() {
+  try {
+    const res = await fetch('/api/history-exclude');
+    historyExcludes = await res.json();
+    if (!Array.isArray(historyExcludes)) historyExcludes = [];
+  } catch { historyExcludes = []; }
+  renderExcludeList();
+}
+
+async function addHistoryExclude(folderPath) {
+  try {
+    const res = await fetch('/api/history-exclude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', path: folderPath })
+    });
+    const data = await res.json();
+    if (data.success) { historyExcludes = data.excludes || []; renderExcludeList(); return true; }
+  } catch {}
+  return false;
+}
+
+async function removeHistoryExclude(folderPath) {
+  try {
+    const res = await fetch('/api/history-exclude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove', path: folderPath })
+    });
+    const data = await res.json();
+    if (data.success) { historyExcludes = data.excludes || []; renderExcludeList(); return true; }
+  } catch {}
+  return false;
+}
+
+function renderExcludeList() {
+  const list = $('#excludeList');
+  if (!list) return;
+  if (!historyExcludes.length) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text3)">暂无排除项</div>';
+    return;
+  }
+  list.innerHTML = historyExcludes.map(p => `
+    <div class="exclude-item">
+      <span title="${p}">${folderNameFromPath(p)}</span>
+      <button data-path="${p}">移除</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => removeHistoryExclude(btn.dataset.path);
+  });
 }
 
 async function loadHistoryFromServer() {
@@ -2846,17 +2951,15 @@ async function loadHistoryFromServer() {
     if (!Array.isArray(serverHistory) || !serverHistory.length) return;
     // Convert server format to client format, merge into localStorage
     const localHistory = getHistory();
-    const localMap = {};
-    localHistory.forEach(h => { localMap[h.path] = h; });
     const merged = serverHistory.slice(0, HISTORY_MAX).map(h => ({
       path: h.trickId,
       name: h.trickName || h.trickId.split(/[/\\]/).pop(),
       thumb: `/api/local/thumbnail?path=${encodeURIComponent(h.trickId)}`,
       time: new Date(h.lastPlayedAt).getTime()
-    }));
+    })).filter(h => !isHistoryExcludedClient(h.path));
     // Also keep local-only entries (from other sources) at the end
     for (const h of localHistory) {
-      if (!merged.find(m => m.path === h.path)) {
+      if (!isHistoryExcludedClient(h.path) && !merged.find(m => m.path === h.path)) {
         merged.push(h);
       }
     }
@@ -2867,6 +2970,7 @@ async function loadHistoryFromServer() {
 }
 
 function addHistory(file) {
+  if (isHistoryExcludedClient(file.path)) return;
   let history = getHistory().filter(h => h.path !== file.path);
   history.unshift({ path: file.path, name: file.name, thumb: `/api/local/thumbnail?path=${encodeURIComponent(file.path)}`, time: Date.now() });
   if (history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
@@ -2885,23 +2989,48 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+function groupHistoryByFolder(history) {
+  const map = new Map();
+  for (const h of history) {
+    const folder = fileFolderPath(h.path);
+    if (!map.has(folder)) map.set(folder, { folderPath: folder, folderName: folderNameFromPath(folder), items: [] });
+    map.get(folder).items.push(h);
+  }
+  return Array.from(map.values());
+}
+
 function renderHistory() {
   const grid = $('#historyGrid');
-  const history = getHistory();
+  let history = getHistory().filter(h => !isHistoryExcludedClient(h.path));
   if (!history.length) {
-    grid.innerHTML = '<div class="history-empty" style="grid-column:1/-1">暂无播放记录</div>';
+    grid.innerHTML = '<div class="history-empty">暂无播放记录</div>';
     return;
   }
-  grid.innerHTML = history.map((h, i) => `
-    <div class="history-card" data-idx="${i}">
-      <div class="history-card-media"><img src="${h.thumb}" alt="" loading="lazy" onerror="this.style.display='none'"></div>
-      <div class="history-card-name" title="${h.name}">${h.name}</div>
-      <div class="history-card-time">${formatRelativeTime(h.time)}</div>
+  const groups = groupHistoryByFolder(history);
+  grid.innerHTML = groups.map((g, gi) => `
+    <div class="history-group" data-gi="${gi}">
+      <div class="history-group-head">
+        <span class="history-group-name" title="${g.folderPath}">${g.folderName}</span>
+        <span class="history-group-count">${g.items.length}</span>
+        <span class="history-group-toggle">▼</span>
+      </div>
+      <div class="history-group-body">
+        ${g.items.map(h => `
+          <div class="history-card" data-path="${h.path}">
+            <div class="history-card-media"><img src="${h.thumb}" alt="" loading="lazy" onerror="this.style.display='none'"></div>
+            <div class="history-card-name" title="${h.name}">${h.name}</div>
+            <div class="history-card-time">${formatRelativeTime(h.time)}</div>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `).join('');
+  grid.querySelectorAll('.history-group-head').forEach(head => {
+    head.onclick = () => head.closest('.history-group').classList.toggle('collapsed');
+  });
   grid.querySelectorAll('.history-card').forEach(card => {
     card.onclick = () => {
-      const h = history[+card.dataset.idx];
+      const h = history.find(x => x.path === card.dataset.path);
       if (!h || !S.tree) return;
       // Expand sidebar to video's folder
       const folder = findVideoFolder(h.path);
@@ -3169,8 +3298,8 @@ function updateSortLabel() {
     s.classList.toggle('active', s.dataset.sort === S.sortBy);
   });
   updateSortLabel();
-  // Load server play history (source of truth) — populates localStorage + sort data
-  loadHistoryFromServer().then(() => {
+  // Load excluded folders first, then server play history
+  loadHistoryExcludes().then(() => loadHistoryFromServer()).then(() => {
     window._serverPlayHistory = getHistory().map(h => ({ trickId: h.path, lastPlayedAt: new Date(h.time).toISOString() }));
   }).catch(() => {});
 })();
@@ -3280,6 +3409,7 @@ function fmtTime(s) {
 
 // ── Play history sync to server ──
 function syncPlayHistoryToServer(file, progress) {
+  if (isHistoryExcludedClient(file.path)) return;
   fetch('/api/play-history', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
