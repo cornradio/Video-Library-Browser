@@ -114,7 +114,33 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .ctrl-btn:hover{background:rgba(255,255,255,.08);border-color:#444}
 .ctrl-btn.ff-on{border-color:var(--accent);color:var(--accent);font-weight:700;font-size:13px}
 
-.ctrl-label{font-size:11px;color:var(--text3);margin-left:8px;white-space:nowrap;flex-shrink:0}
+.ctrl-label{font-size:11px;color:var(--text3);margin-left:8px;white-space:nowrap;flex-shrink:0;font-family:ui-monospace,'Cascadia Code',Consolas,monospace;font-variant-numeric:tabular-nums;min-width:9.5em;text-align:right}
+.detail-action-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0}
+.detail-action-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.detail-action-btn.danger:hover{color:var(--red);border-color:var(--red);background:rgba(239,83,80,.12)}
+.recent-paths{margin-top:8px;margin-bottom:20px}
+.recent-paths-title{font-size:13px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.recent-paths-clear{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:inherit;padding:2px 8px;border-radius:4px}
+.recent-paths-clear:hover{color:var(--accent)}
+.recent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.recent-card{padding:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
+.recent-card:hover{border-color:var(--accent);background:rgba(255,255,255,.03)}
+.recent-card-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:18px}
+.recent-card-path{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent-card-del{position:absolute;top:8px;right:8px;background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:0 2px;line-height:1;border-radius:4px}
+.recent-card-del:hover{color:var(--red)}
+#douyinOverlay{position:fixed;inset:0;z-index:500;background:#000;display:none;flex-direction:column}
+#douyinOverlay.show{display:flex}
+#douyinFeed{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#douyinFeed::-webkit-scrollbar{display:none}
+.douyin-slide{height:100%;min-height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;position:relative;background:#000}
+.douyin-slide video,.douyin-slide img{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;background:#000}
+.douyin-slide-meta{position:absolute;left:16px;right:70px;bottom:28px;pointer-events:none;z-index:2}
+.douyin-slide-name{font-size:15px;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.douyin-slide-idx{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px;font-variant-numeric:tabular-nums}
+#douyinClose{position:absolute;top:14px;right:14px;z-index:10;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.45);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+#douyinClose:hover{background:rgba(255,255,255,.15)}
+#douyinHint{position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:10;font-size:12px;color:rgba(255,255,255,.55);pointer-events:none;opacity:0;transition:opacity .35s ease}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
 .clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
 .clip-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
@@ -172,6 +198,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .fullscreen-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
 .github-btn,.converter-btn,.upload-icon-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;text-decoration:none;cursor:pointer}
 .github-btn:hover,.converter-btn:hover,.upload-icon-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.douyin-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;cursor:pointer;padding:0}
+.douyin-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.douyin-btn.active{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
 .help-shortcuts{padding:4px 16px 8px}
 .help-shortcut{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:12px;color:var(--text)}
 .help-shortcut kbd{display:inline-block;min-width:24px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:monospace;text-align:center;color:var(--accent);font-weight:600}
@@ -269,6 +298,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .hamburger{display:block}
   .mobile-more-btn{display:block}
   .header .github-btn,.header .upload-icon-btn,.header .help-btn{display:none}
+  .header .douyin-btn{display:flex}
   .header h1{font-size:15px}
   .layout{grid-template-columns:1fr}
   .sidebar{position:fixed;top:52px;left:-260px;width:260px;z-index:40;height:calc(100vh - 52px);transition:left var(--speed)}
@@ -364,6 +394,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   </div>
   <div id="currentSortLabel" style="font-size:11px;color:var(--accent);font-weight:600;margin-left:4px;white-space:nowrap"></div>
   <div style="flex:1"></div>
+  <button class="douyin-btn" id="douyinBtn" title="抖音模式（上下滑动）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 6v4"/><path d="M9 18h6"/></svg></button>
   <button class="upload-icon-btn" id="uploadBtn" title="上传视频"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
   <input type="file" id="uploadInput" multiple accept="video/*" style="display:none">
   <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank" class="github-btn" title="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></a>
@@ -420,6 +451,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       <span class="sort-seg" data-sort="recent">最近</span>
     </div>
     <a href="https://github.com/cornradio/Video-Library-Browser" target="_blank">GitHub</a>
+    <button id="mobileDouyinBtn">抖音模式</button>
     <button id="mobileUploadBtn">上传视频</button>
     <button id="mobileHelpBtn">资源导航</button>
   </div>
@@ -444,11 +476,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
         <button class="btn btn-ghost btn-sm" id="refreshBtn" style="display:none">刷新</button>
         <button class="btn btn-ghost btn-sm" id="releaseBtn" style="display:none;color:var(--red)">解除占用</button>
       </div>
+      <div id="recentPaths" class="recent-paths" style="display:none"></div>
       <div id="thumbControls" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
         <span style="font-size:12px;color:var(--text2);white-space:nowrap">封面截取时间</span>
-        <input type="range" id="thumbTimeSlider" min="0" max="300" value="1" step="1" style="flex:1;accent-color:var(--accent)">
+        <input type="range" id="thumbTimeSlider" min="0" max="300" value="1" step="1" style="width:140px;flex:0 1 160px;max-width:180px;accent-color:var(--accent)">
         <span id="thumbTimeVal" style="font-family:monospace;font-size:12px;color:var(--text);min-width:40px;text-align:center">1s</span>
         <button class="btn btn-ghost btn-sm" id="refreshCoversBtn" style="white-space:nowrap">刷新封面</button>
+        <div style="flex:1;min-width:8px"></div>
+        <div id="mediaFilterWrap" class="sort-wrap" style="display:none;flex-shrink:0">
+          <span class="sort-seg active" data-filter="all">全部</span>
+          <span class="sort-seg" data-filter="image">图片</span>
+          <span class="sort-seg" data-filter="video">视频</span>
+        </div>
       </div>
       <div id="folderHeader" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:12px">
         <div id="folderThumbWrap" style="position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--bg);border:2px dashed var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="点击上传或 Ctrl+V 粘贴图片">
@@ -475,6 +514,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
             <button class="stream-item" id="streamOpenBtn">打开地址</button>
           </div>
         </div>
+        <button class="detail-action-btn" id="detailDownloadBtn" title="下载"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <button class="detail-action-btn danger" id="detailDeleteBtn" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
         <div class="spacer"></div>
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
         <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
@@ -561,6 +602,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 
 <div class="toast" id="toast"></div>
 
+<div id="douyinOverlay">
+  <button id="douyinClose" title="退出">&times;</button>
+  <div id="douyinHint">上下滑动切换</div>
+  <div id="douyinFeed"></div>
+</div>
+
 <div class="upload-progress" id="uploadProgress">
   <div class="upload-progress-title">上传中...</div>
   <div class="upload-progress-bar"><div class="upload-progress-fill" id="uploadFill"></div></div>
@@ -593,6 +640,7 @@ const S = {
   currentFolderPath: null,
   currentThumbTime: 1,
   sortBy: 'name_asc',
+  mediaFilter: 'all',
 
 };
 
@@ -676,6 +724,61 @@ function sortVideos(arr) {
 const savedPath = localStorage.getItem('serverViewerPath') || '';
 if (savedPath) $('#pathInput').value = savedPath;
 
+const RECENT_PATHS_KEY = 'serverRecentPaths';
+function getRecentPaths() {
+  try { return JSON.parse(localStorage.getItem(RECENT_PATHS_KEY) || '[]'); } catch { return []; }
+}
+function addRecentPath(p) {
+  if (!p) return;
+  let list = getRecentPaths().filter(x => x !== p);
+  list.unshift(p);
+  if (list.length > 24) list = list.slice(0, 24);
+  localStorage.setItem(RECENT_PATHS_KEY, JSON.stringify(list));
+}
+function removeRecentPath(p) {
+  localStorage.setItem(RECENT_PATHS_KEY, JSON.stringify(getRecentPaths().filter(x => x !== p)));
+  renderRecentPaths();
+}
+function renderRecentPaths() {
+  const wrap = $('#recentPaths');
+  if (!wrap) return;
+  if (S.tree) { wrap.style.display = 'none'; return; }
+  const list = getRecentPaths();
+  if (!list.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  wrap.style.display = '';
+  wrap.innerHTML = `
+    <div class="recent-paths-title">
+      <span>最近打开</span>
+      <button class="recent-paths-clear" id="recentPathsClear">清空</button>
+    </div>
+    <div class="recent-grid">${list.map(p => {
+      const name = p.split(/[/\\]/).filter(Boolean).pop() || p;
+      return `<div class="recent-card" data-path="${esc(p)}">
+        <button class="recent-card-del" data-del="${esc(p)}" title="移除">&times;</button>
+        <div class="recent-card-name" title="${esc(name)}">${esc(name)}</div>
+        <div class="recent-card-path" title="${esc(p)}">${esc(p)}</div>
+      </div>`;
+    }).join('')}</div>`;
+  $('#recentPathsClear').onclick = (e) => {
+    e.stopPropagation();
+    localStorage.removeItem(RECENT_PATHS_KEY);
+    renderRecentPaths();
+  };
+  wrap.querySelectorAll('.recent-card-del').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      removeRecentPath(btn.dataset.del);
+    };
+  });
+  wrap.querySelectorAll('.recent-card').forEach(card => {
+    card.onclick = () => {
+      $('#pathInput').value = card.dataset.path;
+      browse(card.dataset.path);
+    };
+  });
+}
+
 async function browse(dirPath) {
   dirPath = dirPath.trim();
   if (!dirPath) return;
@@ -686,12 +789,17 @@ async function browse(dirPath) {
     S.tree = await r.json();
     S.expanded = new Set([S.tree.path]);
     S.selPath = S.tree.path;
+    addRecentPath(dirPath);
     $('#refreshBtn').style.display = '';
     $('#releaseBtn').style.display = '';
     $('#whitelistSelect').style.display = 'none';
+    renderRecentPaths();
     renderTree();
     showVideosForFolder(S.tree.path);
-  } catch (err) { toast('打开失败: ' + err.message); }
+  } catch (err) {
+    toast('打开失败: ' + err.message);
+    renderRecentPaths();
+  }
 }
 
 $('#openBtn').onclick = () => browse($('#pathInput').value);
@@ -730,6 +838,7 @@ $('#releaseBtn').onclick = async () => {
   $('#refreshBtn').style.display = 'none';
   $('#releaseBtn').style.display = 'none';
   if (whitelistDirs.length > 0) $('#whitelistSelect').style.display = 'block';
+  renderRecentPaths();
   // Ask server to restart and truly release all file handles
   try {
     const r = await fetch('/api/restart', { method: 'POST' });
@@ -839,6 +948,7 @@ async function loadWhitelist() {
     const allowed = whitelistDirs.some(d => effectivePath === d || effectivePath.startsWith(d + '/') || effectivePath.startsWith(d + '\\'));
     if (!allowed) {
       $('#whitelistSelect').style.display = 'block';
+      renderRecentPaths();
       return;
     }
   }
@@ -901,6 +1011,8 @@ async function loadWhitelist() {
       const target = allVids.find(v => v.path === videoParam);
       if (target) openDetail(target, true);
     }
+  } else {
+    renderRecentPaths();
   }
 })();
 
@@ -921,6 +1033,31 @@ function getAllVideos(folder) {
   let v = [...folder.videos];
   for (const f of folder.folders) v.push(...getAllVideos(f));
   return v;
+}
+
+function hasBothMediaTypes(files) {
+  let hasImg = false, hasVid = false;
+  for (const f of files) {
+    if (f.type === 'image') hasImg = true;
+    else hasVid = true;
+    if (hasImg && hasVid) return true;
+  }
+  return false;
+}
+
+function applyMediaFilter(files) {
+  if (S.mediaFilter === 'all' || !hasBothMediaTypes(files)) return files;
+  return files.filter(f => f.type === S.mediaFilter);
+}
+
+function updateMediaFilterUI(files) {
+  const wrap = $('#mediaFilterWrap');
+  if (!wrap) return;
+  const show = hasBothMediaTypes(files);
+  wrap.style.display = show ? '' : 'none';
+  wrap.querySelectorAll('.sort-seg').forEach(s => {
+    s.classList.toggle('active', s.dataset.filter === S.mediaFilter);
+  });
 }
 
 function* walkTree(node) {
@@ -1048,7 +1185,9 @@ function showVideosForFolder(folderPath) {
   if (!folder) return;
   const videos = getAllVideos(folder);
   sortVideos(videos);
-  S.navFiles = videos;
+  updateMediaFilterUI(videos);
+  const filtered = applyMediaFilter(videos);
+  S.navFiles = filtered;
 
   // Update URL to reflect current folder
   const urlParams = new URLSearchParams(location.search);
@@ -1102,6 +1241,10 @@ function showVideosForFolder(folderPath) {
     grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有媒体文件</div></div>';
     return;
   }
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">没有匹配的文件</div></div>';
+    return;
+  }
   grid.innerHTML = '';
 
   // Lazy hydrate cards near viewport
@@ -1120,7 +1263,7 @@ function showVideosForFolder(folderPath) {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         const card = entry.target;
-        const file = videos.find(f => f.path === card.dataset.path);
+        const file = filtered.find(f => f.path === card.dataset.path);
         pendingCards.push({ card, file });
         S.cardObserver.unobserve(card);
       }
@@ -1130,7 +1273,7 @@ function showVideosForFolder(folderPath) {
 
   // Create lightweight placeholders — real content filled on scroll
   const frag = document.createDocumentFragment();
-  videos.forEach(f => {
+  filtered.forEach(f => {
     const d = document.createElement('div');
     d.className = 'card placeholder';
     d.dataset.path = f.path;
@@ -1299,13 +1442,15 @@ function filterGrid(query) {
   if (!folder) return;
   const all = getAllVideos(folder);
   sortVideos(all);
+  updateMediaFilterUI(all);
   const q = query.trim().toLowerCase();
-  const videos = q ? all.filter(f => f.name.toLowerCase().includes(q)) : all;
+  let videos = q ? all.filter(f => f.name.toLowerCase().includes(q)) : all;
+  videos = applyMediaFilter(videos);
   S.navFiles = videos;
 
   const grid = $('#grid');
   if (!videos.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">${q ? '没有匹配的文件' : '此文件夹没有媒体文件'}</div></div>`;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">${q || S.mediaFilter !== 'all' ? '没有匹配的文件' : '此文件夹没有媒体文件'}</div></div>`;
     return;
   }
   grid.innerHTML = '';
@@ -1348,6 +1493,17 @@ function filterGrid(query) {
 
 $('#searchInput').oninput = () => {
   $('#mobileSearchInput').value = $('#searchInput').value;
+  filterGrid($('#searchInput').value);
+};
+
+// ── Media type filter ──
+$('#mediaFilterWrap').onclick = (e) => {
+  const seg = e.target.closest('.sort-seg[data-filter]');
+  if (!seg) return;
+  S.mediaFilter = seg.dataset.filter;
+  $('#mediaFilterWrap').querySelectorAll('.sort-seg').forEach(s => {
+    s.classList.toggle('active', s.dataset.filter === S.mediaFilter);
+  });
   filterGrid($('#searchInput').value);
 };
 
@@ -1841,6 +1997,17 @@ $('#streamOpenBtn').onclick = () => {
   window.open(url, '_blank');
   $('#streamDropdown').classList.remove('show');
 };
+
+$('#detailDownloadBtn').onclick = () => {
+  if (!S.curFile) return;
+  const a = document.createElement('a');
+  a.href = '/api/local/stream?path=' + encodeURIComponent(S.curFile.path) + '&download=1';
+  a.download = S.curFile.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+$('#detailDeleteBtn').onclick = () => deleteCurrentVideo();
 
 $('#prevBtn').onclick = () => {
   if (S.navFiles.length <= 1) return;
@@ -3247,6 +3414,11 @@ $('#mobileUploadBtn').onclick = () => {
   $('#mobileMoreMenu').classList.remove('show');
   $('#uploadInput').click();
 };
+$('#mobileDouyinBtn').onclick = () => {
+  $('#mobileMoreMenu').classList.remove('show');
+  if ($('#douyinOverlay').classList.contains('show')) exitDouyinMode();
+  else enterDouyinMode(S.curFile);
+};
 
 $('#uploadInput').onchange = async (e) => {
   const fileList = e.target.files;
@@ -3553,10 +3725,160 @@ let _lastProgressSync = 0;
 }
 function fmtTime(s) {
   if (!s || !isFinite(s)) return '0:00';
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const sec = Math.floor(s % 60);
-  return m + ':' + (sec < 10 ? '0' : '') + sec;
+  const ss = (sec < 10 ? '0' : '') + sec;
+  if (h > 0) return h + ':' + (m < 10 ? '0' : '') + m + ':' + ss;
+  return m + ':' + ss;
 }
+
+// ── Douyin mode (vertical swipe feed) ──
+let _douyinObserver = null;
+let _douyinCurrentPath = null;
+let _douyinHintTimer = null;
+function getDouyinPlaylist() {
+  const folder = findFolder(S.tree, S.currentFolderPath || S.selPath || (S.tree && S.tree.path));
+  if (!folder) return [];
+  const all = getAllVideos(folder);
+  sortVideos(all);
+  return all.filter(f => f.type !== 'image');
+}
+function exitDouyinMode() {
+  const overlay = $('#douyinOverlay');
+  if (!overlay.classList.contains('show')) return;
+  const returnPath = _douyinCurrentPath;
+  overlay.classList.remove('show');
+  $('#douyinBtn').classList.remove('active');
+  if (_douyinObserver) { _douyinObserver.disconnect(); _douyinObserver = null; }
+  clearTimeout(_douyinHintTimer);
+  const hint = $('#douyinHint');
+  if (hint) hint.style.opacity = '0';
+  $('#douyinFeed').querySelectorAll('video').forEach(v => {
+    v.pause();
+    v.removeAttribute('src');
+    v.load();
+  });
+  $('#douyinFeed').innerHTML = '';
+  document.body.style.overflow = '';
+  _douyinCurrentPath = null;
+
+  // Return to the video that was playing in douyin mode
+  if (returnPath && S.tree) {
+    const folder = findFolder(S.tree, S.currentFolderPath || S.selPath || S.tree.path);
+    const pool = folder ? getAllVideos(folder) : getAllVideos(S.tree);
+    const file = pool.find(f => f.path === returnPath) || findVideoInTree(S.tree, returnPath);
+    if (file) {
+      if (!S.navFiles.some(f => f.path === file.path)) {
+        sortVideos(pool);
+        S.navFiles = pool;
+      }
+      openDetail(file);
+    }
+  }
+}
+function enterDouyinMode(startFile) {
+  if (!S.tree) return toast('请先打开一个文件夹');
+  const list = getDouyinPlaylist();
+  if (!list.length) return toast('当前没有可播放的视频');
+
+  // Pause detail player if it's currently playing
+  const mainV = $('#video');
+  if (mainV && !mainV.paused) {
+    try { mainV.pause(); } catch {}
+  }
+
+  const feed = $('#douyinFeed');
+  const overlay = $('#douyinOverlay');
+  if (_douyinObserver) { _douyinObserver.disconnect(); _douyinObserver = null; }
+  feed.innerHTML = '';
+
+  let startIdx = 0;
+  const start = startFile || S.curFile;
+  if (start) {
+    const idx = list.findIndex(f => f.path === start.path);
+    if (idx >= 0) startIdx = idx;
+  }
+  _douyinCurrentPath = list[startIdx].path;
+
+  list.forEach((f, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'douyin-slide';
+    slide.dataset.path = f.path;
+    slide.innerHTML = `
+      <video playsinline loop preload="${i === startIdx ? 'auto' : 'none'}" ${i === startIdx ? `src="/api/local/stream?path=${encodeURIComponent(f.path)}"` : ''}></video>
+      <div class="douyin-slide-meta">
+        <div class="douyin-slide-name"></div>
+        <div class="douyin-slide-idx">${i + 1} / ${list.length}</div>
+      </div>`;
+    slide.querySelector('.douyin-slide-name').textContent = f.name;
+    const vid = slide.querySelector('video');
+    slide.onclick = () => {
+      if (!vid.src) vid.src = '/api/local/stream?path=' + encodeURIComponent(f.path);
+      if (vid.paused) vid.play().catch(() => {});
+      else vid.pause();
+    };
+    feed.appendChild(slide);
+  });
+  overlay.classList.add('show');
+  $('#douyinBtn').classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Brief hint, then hide so it doesn't cover the video
+  const hint = $('#douyinHint');
+  if (hint) {
+    hint.style.opacity = '1';
+    clearTimeout(_douyinHintTimer);
+    _douyinHintTimer = setTimeout(() => { hint.style.opacity = '0'; }, 1000);
+  }
+
+  _douyinObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      const slide = entry.target;
+      const vid = slide.querySelector('video');
+      if (!vid) continue;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        _douyinCurrentPath = slide.dataset.path;
+        if (!vid.src) {
+          vid.src = '/api/local/stream?path=' + encodeURIComponent(slide.dataset.path);
+        }
+        feed.querySelectorAll('video').forEach(v => { if (v !== vid) { v.pause(); } });
+        vid.muted = false;
+        vid.play().catch(() => {});
+      } else if (!entry.isIntersecting) {
+        vid.pause();
+      }
+    }
+  }, { root: feed, threshold: [0.6] });
+
+  feed.querySelectorAll('.douyin-slide').forEach(s => _douyinObserver.observe(s));
+
+  requestAnimationFrame(() => {
+    const target = feed.children[startIdx];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'auto', block: 'start' });
+    const vid = target.querySelector('video');
+    if (vid) {
+      if (!vid.src) vid.src = '/api/local/stream?path=' + encodeURIComponent(target.dataset.path);
+      feed.querySelectorAll('video').forEach(v => { if (v !== vid) v.pause(); });
+      vid.muted = false;
+      vid.play().catch(() => {});
+    }
+  });
+}
+$('#douyinBtn').onclick = () => {
+  if ($('#douyinOverlay').classList.contains('show')) exitDouyinMode();
+  else enterDouyinMode(S.curFile);
+};
+$('#douyinClose').onclick = exitDouyinMode;
+
+// Escape exits douyin mode first
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('#douyinOverlay').classList.contains('show')) {
+    e.stopImmediatePropagation();
+    exitDouyinMode();
+  }
+}, true);
 
 // ── Play history sync to server ──
 function syncPlayHistoryToServer(file, progress) {

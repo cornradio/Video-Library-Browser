@@ -524,13 +524,19 @@ app.get('/api/local/stream', (req, res) => {
     const isVideo = videoMap[ext];
     const isImage = imageMap[ext];
     const contentType = isVideo || isImage || 'application/octet-stream';
+    const asDownload = req.query.download === '1' || req.query.download === 'true';
+    const disposition = asDownload
+      ? `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(filePath))}`
+      : null;
 
     // Images: read entire file into memory — no persistent file handle
     if (isImage) {
       const maxImageSize = 50 * 1024 * 1024; // 50MB limit for in-memory
       if (stat.size <= maxImageSize) {
         const data = fs.readFileSync(filePath);
-        res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': isImage, 'Cache-Control': 'max-age=3600' });
+        const headers = { 'Content-Length': stat.size, 'Content-Type': isImage, 'Cache-Control': 'max-age=3600' };
+        if (disposition) headers['Content-Disposition'] = disposition;
+        res.writeHead(200, headers);
         return res.end(data);
       }
       // Fall through to streaming for very large images
@@ -560,12 +566,14 @@ app.get('/api/local/stream', (req, res) => {
         res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
         return res.end();
       }
-      res.writeHead(206, {
+      const rangeHeaders = {
         'Content-Range': `bytes ${start}-${safeEnd}/${stat.size}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': safeEnd - start + 1,
         'Content-Type': contentType
-      });
+      };
+      if (disposition) rangeHeaders['Content-Disposition'] = disposition;
+      res.writeHead(206, rangeHeaders);
       const stream = fs.createReadStream(filePath, { start, end: safeEnd });
       stream.on('error', (err) => {
         console.error('Stream read error:', err.message);
@@ -575,7 +583,9 @@ app.get('/api/local/stream', (req, res) => {
       track(stream);
       stream.pipe(res);
     } else {
-      res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': contentType, 'Accept-Ranges': 'bytes' });
+      const fullHeaders = { 'Content-Length': stat.size, 'Content-Type': contentType, 'Accept-Ranges': 'bytes' };
+      if (disposition) fullHeaders['Content-Disposition'] = disposition;
+      res.writeHead(200, fullHeaders);
       const stream = fs.createReadStream(filePath);
       stream.on('error', (err) => {
         console.error('Stream read error:', err.message);
@@ -685,6 +695,14 @@ app.get('/api/local/thumbnail', async (req, res) => {
     if (hasManual) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       return res.sendFile(manualPath);
+    }
+
+    // Images: serve original directly — no ffmpeg needed
+    const fileExt = path.extname(filePath).toLowerCase();
+    if (IMAGE_EXTS.has(fileExt)) {
+      if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+      res.set('Cache-Control', req.query._ ? 'no-store, no-cache, must-revalidate' : 'public, max-age=86400');
+      return res.sendFile(path.resolve(filePath));
     }
 
     // Auto-generated thumbnail: hash includes time

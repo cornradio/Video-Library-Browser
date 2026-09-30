@@ -88,6 +88,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 /* ── Detail ── */
 .detail-topbar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
 .detail-topbar .spacer{flex:1}
+.detail-action-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0}
+.detail-action-btn:hover{background:var(--hover);color:var(--text);border-color:var(--accent)}
+.detail-action-btn.danger:hover{color:var(--red);border-color:var(--red);background:rgba(239,83,80,.12)}
 .detail-video{background:#000;border-radius:8px;overflow:hidden;margin-bottom:0;height:50vh;min-height:200px;display:flex;align-items:center;justify-content:center}
 .video-resize-handle{height:8px;background:#000;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;margin-bottom:16px;user-select:none;touch-action:none}
 .video-resize-handle:hover{background:rgba(255,255,255,.06)}
@@ -361,9 +364,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       <div id="savedFolders"></div>
       <div id="thumbControls" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
         <span style="font-size:12px;color:var(--text2);white-space:nowrap">封面截取时间</span>
-        <input type="range" id="thumbTimeSlider" min="0" max="300" value="1" step="1" style="flex:1;accent-color:var(--accent)">
+        <input type="range" id="thumbTimeSlider" min="0" max="300" value="1" step="1" style="width:140px;flex:0 1 160px;max-width:180px;accent-color:var(--accent)">
         <span id="thumbTimeVal" style="font-family:monospace;font-size:12px;color:var(--text);min-width:40px;text-align:center">1s</span>
         <button class="btn btn-ghost btn-sm" id="refreshCoversBtn" style="white-space:nowrap">刷新封面</button>
+        <div style="flex:1;min-width:8px"></div>
+        <div id="mediaFilterWrap" class="sort-wrap" style="display:none;flex-shrink:0">
+          <span class="sort-seg active" data-filter="all">全部</span>
+          <span class="sort-seg" data-filter="image">图片</span>
+          <span class="sort-seg" data-filter="video">视频</span>
+        </div>
       </div>
       <div id="folderHeader" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;align-items:center;gap:12px">
         <div id="folderThumbWrap" style="position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--bg);border:2px dashed var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="点击上传或 Ctrl+V 粘贴图片">
@@ -383,6 +392,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
     <div id="detailView" style="display:none">
       <div class="detail-topbar">
         <button class="btn btn-ghost btn-sm" id="backBtn">&larr; 返回</button>
+        <button class="detail-action-btn" id="detailDownloadBtn" title="下载"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <button class="detail-action-btn danger" id="detailDeleteBtn" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
         <div class="spacer"></div>
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
         <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
@@ -470,7 +481,8 @@ const S = {
   expanded: new Set(), selPath: null,
   navFiles: [], navIdx: -1, blobUrls: [], scrollPos: 0,
   currentFolderPath: null,
-  sortBy: 'name_asc'
+  sortBy: 'name_asc',
+  mediaFilter: 'all',
 
 };
 
@@ -872,6 +884,31 @@ function getAllVideos(folder) {
   return v;
 }
 
+function hasBothMediaTypes(files) {
+  let hasImg = false, hasVid = false;
+  for (const f of files) {
+    if (f.type === 'image') hasImg = true;
+    else hasVid = true;
+    if (hasImg && hasVid) return true;
+  }
+  return false;
+}
+
+function applyMediaFilter(files) {
+  if (S.mediaFilter === 'all' || !hasBothMediaTypes(files)) return files;
+  return files.filter(f => f.type === S.mediaFilter);
+}
+
+function updateMediaFilterUI(files) {
+  const wrap = $('#mediaFilterWrap');
+  if (!wrap) return;
+  const show = hasBothMediaTypes(files);
+  wrap.style.display = show ? '' : 'none';
+  wrap.querySelectorAll('.sort-seg').forEach(s => {
+    s.classList.toggle('active', s.dataset.filter === S.mediaFilter);
+  });
+}
+
 function findFolder(node, p) {
   if (node.relPath === p) return node;
   for (const f of node.folders) { const r = findFolder(f, p); if (r) return r; }
@@ -964,7 +1001,9 @@ async function showVideosForFolder(folderPath) {
   }
   const videos = getAllVideos(folder);
   sortVideos(videos);
-  S.navFiles = videos;
+  updateMediaFilterUI(videos);
+  const filtered = applyMediaFilter(videos);
+  S.navFiles = filtered;
 
   // Update URL to reflect current folder
   const urlParams = new URLSearchParams(location.search);
@@ -995,19 +1034,23 @@ async function showVideosForFolder(folderPath) {
     grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">此文件夹没有媒体文件</div></div>';
     return;
   }
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">&#9673;</div><div class="empty-text">没有匹配的文件</div></div>';
+    return;
+  }
   grid.innerHTML = '';
   // Staggered card creation: append in chunks to avoid blocking
   let cardIdx = 0;
   function appendCardChunk() {
     const frag = document.createDocumentFragment();
-    const end = Math.min(cardIdx + 20, videos.length);
-    for (; cardIdx < end; cardIdx++) frag.appendChild(buildCard(videos[cardIdx]));
+    const end = Math.min(cardIdx + 20, filtered.length);
+    for (; cardIdx < end; cardIdx++) frag.appendChild(buildCard(filtered[cardIdx]));
     grid.appendChild(frag);
-    if (cardIdx < videos.length) requestAnimationFrame(appendCardChunk);
+    if (cardIdx < filtered.length) requestAnimationFrame(appendCardChunk);
     else { loadClipCounts(); generateThumbnailsForGrid(); }
   }
-  if (videos.length > 30) requestAnimationFrame(appendCardChunk);
-  else { videos.forEach(f => grid.appendChild(buildCard(f))); loadClipCounts(); generateThumbnailsForGrid(); }
+  if (filtered.length > 30) requestAnimationFrame(appendCardChunk);
+  else { filtered.forEach(f => grid.appendChild(buildCard(f))); loadClipCounts(); generateThumbnailsForGrid(); }
 }
 
 // ── Folder thumbnail ──
@@ -1508,6 +1551,22 @@ $('#nextBtn').onclick = () => {
   S.navIdx = (S.navIdx + 1) % S.navFiles.length;
   openDetail(S.navFiles[S.navIdx]);
 };
+
+$('#detailDownloadBtn').onclick = async () => {
+  if (!S.curFile) return;
+  try {
+    const file = await S.curFile.handle.getFile();
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = S.curFile.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) { toast('下载失败: ' + e.message); }
+};
+$('#detailDeleteBtn').onclick = () => deleteCurrentVideo();
 
 // ── Clip Storage (localStorage) ──
 const CLIP_KEY = 'localViewerClips';
@@ -2076,15 +2135,47 @@ $('#saveClipBtn').onclick = () => {
 // ── Search ──
 function filterGridLocal() {
   const q = $('#searchInput').value.trim().toLowerCase();
+  const folder = findFolder(S.tree, S.currentFolderPath || S.selPath);
+  if (!folder) {
+    document.querySelectorAll('#grid .card').forEach(card => {
+      const name = card.querySelector('.card-name');
+      if (!name) return;
+      card.style.display = (!q || name.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+    return;
+  }
+  const all = getAllVideos(folder);
+  sortVideos(all);
+  updateMediaFilterUI(all);
+  const filtered = applyMediaFilter(all).filter(f => !q || f.name.toLowerCase().includes(q));
+  S.navFiles = filtered;
+  const visible = new Set(filtered.map(f => f.relPath));
   document.querySelectorAll('#grid .card').forEach(card => {
-    const name = card.querySelector('.card-name');
-    if (!name) return;
-    card.style.display = (!q || name.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    card.style.display = visible.has(card.dataset.path) ? '' : 'none';
   });
 }
 $('#searchInput').oninput = () => {
   $('#mobileSearchInput').value = $('#searchInput').value;
   filterGridLocal();
+};
+
+// ── Media type filter ──
+$('#mediaFilterWrap').onclick = async (e) => {
+  const seg = e.target.closest('.sort-seg[data-filter]');
+  if (!seg) return;
+  S.mediaFilter = seg.dataset.filter;
+  $('#mediaFilterWrap').querySelectorAll('.sort-seg').forEach(s => {
+    s.classList.toggle('active', s.dataset.filter === S.mediaFilter);
+  });
+  const savedQ = $('#searchInput').value;
+  if (S.currentFolderPath) {
+    await showVideosForFolder(S.currentFolderPath);
+    if (savedQ) {
+      $('#searchInput').value = savedQ;
+      $('#mobileSearchInput').value = savedQ;
+      filterGridLocal();
+    }
+  }
 };
 
 // ── Folder Management (FSA) ──
