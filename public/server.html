@@ -135,11 +135,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 #douyinFeed::-webkit-scrollbar{display:none}
 .douyin-slide{height:100%;min-height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;position:relative;background:#000}
 .douyin-slide video,.douyin-slide img{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;background:#000}
-.douyin-slide-meta{position:absolute;left:16px;right:70px;bottom:28px;pointer-events:none;z-index:2}
-.douyin-slide-name{font-size:15px;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.douyin-slide-idx{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px;font-variant-numeric:tabular-nums}
-#douyinClose{position:absolute;top:14px;right:14px;z-index:10;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.45);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
-#douyinClose:hover{background:rgba(255,255,255,.15)}
+.douyin-slide-meta{position:absolute;left:16px;right:72px;bottom:28px;z-index:2;pointer-events:none}
+.douyin-slide-progress{pointer-events:auto;width:100%;height:18px;margin-bottom:8px;display:flex;align-items:center;touch-action:none;cursor:pointer}
+.douyin-slide-progress-track{position:relative;width:100%;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:visible;transition:height .15s}
+.douyin-slide-progress:active .douyin-slide-progress-track,.douyin-slide-progress.dragging .douyin-slide-progress-track{height:5px}
+.douyin-slide-progress-fill{height:100%;width:0%;background:var(--accent);border-radius:2px;pointer-events:none}
+.douyin-slide-name{font-size:15px;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.douyin-slide-idx{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px;font-variant-numeric:tabular-nums;pointer-events:none}
+.douyin-speed-btn{position:absolute;right:16px;bottom:36px;z-index:6;min-width:44px;height:44px;padding:0 10px;border-radius:22px;border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.45);color:rgba(255,255,255,.85);font-size:13px;font-weight:700;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;backdrop-filter:blur(6px);-webkit-tap-highlight-color:transparent;user-select:none}
+.douyin-speed-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(255,87,34,.18)}
+.douyin-speed-btn:active{transform:scale(.96)}
+#douyinClose{position:absolute;top:10px;right:10px;z-index:10;width:36px;height:36px;border:none;border-radius:0;background:transparent;color:rgba(255,255,255,.35);font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+#douyinClose:hover{color:rgba(255,255,255,.7);background:transparent}
 #douyinHint{position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:10;font-size:12px;color:rgba(255,255,255,.55);pointer-events:none;opacity:0;transition:opacity .35s ease}
 .clips-section{border-top:1px solid var(--border);padding-top:16px;margin-top:8px}
 .clips-head{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
@@ -305,7 +312,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .sidebar.open{left:0}
   .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
   .main{padding:16px 12px 0}
-  .grid{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .card{border-radius:8px}
+  .card-info{padding:6px 8px}
+  .card-name{font-size:11px}
+  .card-meta{font-size:10px;margin-top:2px;gap:6px}
+  .card-tag{font-size:9px;padding:0 4px}
+  .card-clip-count{font-size:10px;margin-top:2px}
   #searchInput,.sort-wrap{display:none}
   .mobile-search-input{display:block;width:calc(100% - 32px);margin:6px 16px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
   .mobile-search-input:focus{border-color:var(--accent)}
@@ -414,8 +427,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       <div class="help-shortcuts">
         <div class="help-shortcut"><kbd>↑</kbd><span>上一个视频</span></div>
         <div class="help-shortcut"><kbd>↓</kbd><span>下一个视频</span></div>
+        <div class="help-shortcut"><kbd>空格</kbd><span>播放 / 暂停</span></div>
+        <div class="help-shortcut"><kbd>←</kbd><span>后退 5 秒</span></div>
+        <div class="help-shortcut"><kbd>→</kbd><span>前进 5 秒</span></div>
+        <div class="help-shortcut"><kbd>S</kbd><span>截图下载</span></div>
+        <div class="help-shortcut"><kbd>D</kbd><span>下载视频</span></div>
         <div class="help-shortcut"><kbd>F</kbd><span>全屏播放</span></div>
-	        <div class="help-shortcut"><kbd>P</kbd><span>切换控件显示</span></div>
+        <div class="help-shortcut"><kbd>P</kbd><span>切换控件显示</span></div>
         <div class="help-shortcut"><kbd>R</kbd><span>重命名文件</span></div>
         <div class="help-shortcut"><kbd>Z</kbd><span>收藏/取消收藏</span></div>
         <div class="help-shortcut"><kbd>Del</kbd><span>删除文件</span></div>
@@ -514,12 +532,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
             <button class="stream-item" id="streamOpenBtn">打开地址</button>
           </div>
         </div>
-        <button class="detail-action-btn" id="detailDownloadBtn" title="下载"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-        <button class="detail-action-btn danger" id="detailDeleteBtn" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
+        <button class="detail-action-btn danger" id="detailDeleteBtn" title="删除 (Del)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
         <div class="spacer"></div>
         <span id="navInfo" style="font-size:11px;color:var(--text3)"></span>
-        <button class="btn btn-ghost btn-sm" id="prevBtn">上一个</button>
-        <button class="btn btn-ghost btn-sm" id="nextBtn">下一个</button>
+        <button class="btn btn-ghost btn-sm" id="prevBtn" title="上一个 (↑)">上一个</button>
+        <button class="btn btn-ghost btn-sm" id="nextBtn" title="下一个 (↓)">下一个</button>
       </div>
       <div class="detail-player" id="detailPlayer" style="position:relative">
         <div class="detail-video" id="detailVideoBox"><video id="video" controls loop preload="auto" style="display:none;width:100%;max-height:100%;object-fit:contain"></video></div>
@@ -539,9 +556,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
       </div>
       <div id="speedIndicator" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);color:var(--accent);font-size:13px;font-weight:700;padding:6px 18px;border-radius:20px;border:1px solid var(--accent);letter-spacing:1px;white-space:nowrap;z-index:999;pointer-events:none">2x 倍速</div>
       <div class="detail-name" id="detailName" style="display:flex;align-items:center"><span class="detail-drag-icon" id="detailDragIcon" title="拖拽到左侧文件夹以移动"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v3h3"/></svg></span><span id="detailNameText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-        <button class="ctrl-btn" id="rewindBtn" title="后退5秒">‹</button>
-        <button class="ctrl-btn" id="playPauseBtn" title="播放/暂停">▶</button>
-        <button class="ctrl-btn" id="forwardBtn" title="前进5秒">›</button>
+        <button class="ctrl-btn" id="snapshotBtn" title="截图 (S)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+        <button class="ctrl-btn" id="detailDownloadBtn" title="下载 (D)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <span style="width:12px;flex-shrink:0" aria-hidden="true"></span>
+        <button class="ctrl-btn" id="rewindBtn" title="后退5秒 (←)"><span aria-hidden="true">‹</span></button>
+        <button class="ctrl-btn" id="playPauseBtn" title="播放/暂停 (空格)">▶</button>
+        <button class="ctrl-btn" id="forwardBtn" title="前进5秒 (→)"><span aria-hidden="true">›</span></button>
         <span class="ctrl-label" id="playTimeLabel">0:00 / 0:00</span>
       </div>
       <div id="detailTags" style="padding:0 24px 8px;display:flex;gap:6px;flex-wrap:wrap"></div>
@@ -2557,6 +2577,8 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') { e.preventDefault(); if ($('#video').src) $('#rewindBtn').click(); }
     if (e.key === 'ArrowRight') { e.preventDefault(); if ($('#video').src) { if (!e.repeat) $('#forwardBtn').click(); startFF(); } }
     if (e.key === ' ') { e.preventDefault(); if ($('#video').src) $('#playPauseBtn').click(); }
+    if (e.key === 's' || e.key === 'S') { e.preventDefault(); if ($('#video').src) $('#snapshotBtn').click(); }
+    if (e.key === 'd' || e.key === 'D') { e.preventDefault(); if (S.curFile) $('#detailDownloadBtn').click(); }
   }
   // Clip marking shortcuts (only when clip panel is open)
   if ($('#clipAddPanel').style.display !== 'none') {
@@ -3525,6 +3547,35 @@ function updateSortLabel() {
 })();
 
 // ── Detail Controls ──
+$('#snapshotBtn').onclick = () => {
+  const v = $('#video');
+  if (!v || !v.src || v.readyState < 2) return toast('视频尚未就绪');
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth || 1280;
+    canvas.height = v.videoHeight || 720;
+    if (!canvas.width || !canvas.height) return toast('无法获取画面尺寸');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    const base = (S.curFile && S.curFile.name ? S.curFile.name.replace(/\.[^.]+$/, '') : 'snapshot');
+    const t = Math.floor(v.currentTime || 0);
+    const name = `${base}_${t}s.jpg`;
+    canvas.toBlob(blob => {
+      if (!blob) return toast('截图失败');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('截图已下载');
+    }, 'image/jpeg', 0.92);
+  } catch (e) {
+    toast('截图失败: ' + (e.message || e));
+  }
+};
 $('#rewindBtn').onclick = () => {
   const v = $('#video');
   if (!v.src) return;
@@ -3737,6 +3788,7 @@ function fmtTime(s) {
 let _douyinObserver = null;
 let _douyinCurrentPath = null;
 let _douyinHintTimer = null;
+let _douyinProgressRaf = null;
 function getDouyinPlaylist() {
   const folder = findFolder(S.tree, S.currentFolderPath || S.selPath || (S.tree && S.tree.path));
   if (!folder) return [];
@@ -3751,6 +3803,7 @@ function exitDouyinMode() {
   overlay.classList.remove('show');
   $('#douyinBtn').classList.remove('active');
   if (_douyinObserver) { _douyinObserver.disconnect(); _douyinObserver = null; }
+  if (_douyinProgressRaf) { cancelAnimationFrame(_douyinProgressRaf); _douyinProgressRaf = null; }
   clearTimeout(_douyinHintTimer);
   const hint = $('#douyinHint');
   if (hint) hint.style.opacity = '0';
@@ -3777,6 +3830,126 @@ function exitDouyinMode() {
     }
   }
 }
+/** Keep current ±1 videos buffered; unload farther ones to save mobile memory */
+function preloadDouyinAround(activeIdx) {
+  const feed = $('#douyinFeed');
+  if (!feed) return;
+  const slides = Array.from(feed.children);
+  slides.forEach((slide, i) => {
+    const vid = slide.querySelector('video');
+    if (!vid) return;
+    const dist = Math.abs(i - activeIdx);
+    const path = slide.dataset.path;
+    const url = '/api/local/stream?path=' + encodeURIComponent(path);
+    if (dist <= 1) {
+      if (!vid.getAttribute('src')) {
+        vid.preload = 'auto';
+        vid.src = url;
+      }
+    } else if (dist > 2) {
+      if (vid.getAttribute('src')) {
+        vid.pause();
+        vid.removeAttribute('src');
+        vid.load();
+      }
+    }
+  });
+}
+function setupDouyinSlideInteractions(slide, vid, f) {
+  const fill = slide.querySelector('.douyin-slide-progress-fill');
+  const progress = slide.querySelector('.douyin-slide-progress');
+  const speedBtn = slide.querySelector('.douyin-speed-btn');
+  let seeking = false;
+  let moved = false;
+  let startX = 0, startY = 0;
+  const MOVE_PX = 10;
+
+  function ensureSrc() {
+    if (!vid.getAttribute('src')) {
+      vid.preload = 'auto';
+      vid.src = '/api/local/stream?path=' + encodeURIComponent(f.path);
+    }
+  }
+  function setSpeed(rate) {
+    vid.playbackRate = rate;
+    speedBtn.classList.toggle('active', rate === 2);
+    speedBtn.textContent = rate === 2 ? '2x' : '1x';
+  }
+  function setProgressFromClientX(clientX) {
+    const rect = progress.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    if (vid.duration && isFinite(vid.duration)) {
+      vid.currentTime = ratio * vid.duration;
+      fill.style.width = (ratio * 100) + '%';
+    }
+  }
+  function updateProgress() {
+    if (seeking || !vid.duration || !isFinite(vid.duration)) return;
+    fill.style.width = ((vid.currentTime / vid.duration) * 100) + '%';
+  }
+  vid.addEventListener('timeupdate', updateProgress);
+  vid.addEventListener('loadedmetadata', updateProgress);
+
+  // Progress scrubbing
+  const onSeekStart = (clientX, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    seeking = true;
+    progress.classList.add('dragging');
+    ensureSrc();
+    setProgressFromClientX(clientX);
+  };
+  const onSeekMove = (clientX) => {
+    if (!seeking) return;
+    setProgressFromClientX(clientX);
+  };
+  const onSeekEnd = () => {
+    if (!seeking) return;
+    seeking = false;
+    progress.classList.remove('dragging');
+  };
+  progress.addEventListener('pointerdown', e => {
+    progress.setPointerCapture(e.pointerId);
+    onSeekStart(e.clientX, e);
+  });
+  progress.addEventListener('pointermove', e => onSeekMove(e.clientX));
+  progress.addEventListener('pointerup', onSeekEnd);
+  progress.addEventListener('pointercancel', onSeekEnd);
+
+  // Speed toggle button (bottom-right)
+  speedBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  speedBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    ensureSrc();
+    const next = vid.playbackRate === 2 ? 1 : 2;
+    setSpeed(next);
+    if (vid.paused) vid.play().catch(() => {});
+  });
+
+  function onPointerDown(e) {
+    if (e.target.closest('.douyin-slide-progress') || e.target.closest('.douyin-speed-btn')) return;
+    moved = false;
+    startX = e.clientX;
+    startY = e.clientY;
+  }
+  function onPointerMove(e) {
+    if (Math.abs(e.clientX - startX) > MOVE_PX || Math.abs(e.clientY - startY) > MOVE_PX) {
+      moved = true;
+    }
+  }
+  function onPointerUp(e) {
+    if (moved || seeking) return;
+    if (e.target.closest('.douyin-slide-progress') || e.target.closest('.douyin-speed-btn')) return;
+    ensureSrc();
+    if (vid.paused) vid.play().catch(() => {});
+    else vid.pause();
+  }
+  slide.addEventListener('pointerdown', onPointerDown);
+  slide.addEventListener('pointermove', onPointerMove);
+  slide.addEventListener('pointerup', onPointerUp);
+  slide.addEventListener('contextmenu', e => e.preventDefault());
+}
 function enterDouyinMode(startFile) {
   if (!S.tree) return toast('请先打开一个文件夹');
   const list = getDouyinPlaylist();
@@ -3791,6 +3964,7 @@ function enterDouyinMode(startFile) {
   const feed = $('#douyinFeed');
   const overlay = $('#douyinOverlay');
   if (_douyinObserver) { _douyinObserver.disconnect(); _douyinObserver = null; }
+  if (_douyinProgressRaf) { cancelAnimationFrame(_douyinProgressRaf); _douyinProgressRaf = null; }
   feed.innerHTML = '';
 
   let startIdx = 0;
@@ -3805,24 +3979,27 @@ function enterDouyinMode(startFile) {
     const slide = document.createElement('div');
     slide.className = 'douyin-slide';
     slide.dataset.path = f.path;
+    slide.dataset.idx = String(i);
+    const near = Math.abs(i - startIdx) <= 1;
     slide.innerHTML = `
-      <video playsinline loop preload="${i === startIdx ? 'auto' : 'none'}" ${i === startIdx ? `src="/api/local/stream?path=${encodeURIComponent(f.path)}"` : ''}></video>
+      <video playsinline loop preload="${near ? 'auto' : 'none'}" ${near ? `src="/api/local/stream?path=${encodeURIComponent(f.path)}"` : ''}></video>
+      <button type="button" class="douyin-speed-btn" title="切换倍速">1x</button>
       <div class="douyin-slide-meta">
+        <div class="douyin-slide-progress">
+          <div class="douyin-slide-progress-track"><div class="douyin-slide-progress-fill"></div></div>
+        </div>
         <div class="douyin-slide-name"></div>
         <div class="douyin-slide-idx">${i + 1} / ${list.length}</div>
       </div>`;
     slide.querySelector('.douyin-slide-name').textContent = f.name;
     const vid = slide.querySelector('video');
-    slide.onclick = () => {
-      if (!vid.src) vid.src = '/api/local/stream?path=' + encodeURIComponent(f.path);
-      if (vid.paused) vid.play().catch(() => {});
-      else vid.pause();
-    };
+    setupDouyinSlideInteractions(slide, vid, f);
     feed.appendChild(slide);
   });
   overlay.classList.add('show');
   $('#douyinBtn').classList.add('active');
   document.body.style.overflow = 'hidden';
+  preloadDouyinAround(startIdx);
 
   // Brief hint, then hide so it doesn't cover the video
   const hint = $('#douyinHint');
@@ -3838,15 +4015,34 @@ function enterDouyinMode(startFile) {
       const vid = slide.querySelector('video');
       if (!vid) continue;
       if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        const idx = Number(slide.dataset.idx) || 0;
         _douyinCurrentPath = slide.dataset.path;
-        if (!vid.src) {
+        preloadDouyinAround(idx);
+        if (!vid.getAttribute('src')) {
+          vid.preload = 'auto';
           vid.src = '/api/local/stream?path=' + encodeURIComponent(slide.dataset.path);
         }
-        feed.querySelectorAll('video').forEach(v => { if (v !== vid) { v.pause(); } });
+        feed.querySelectorAll('video').forEach(v => {
+          if (v !== vid) {
+            v.pause();
+            v.playbackRate = 1;
+          }
+        });
+        feed.querySelectorAll('.douyin-speed-btn').forEach(b => {
+          b.classList.remove('active');
+          b.textContent = '1x';
+        });
         vid.muted = false;
-        vid.play().catch(() => {});
+        vid.playbackRate = 1;
+        const tryPlay = () => vid.play().catch(() => {});
+        if (vid.readyState >= 2) tryPlay();
+        else {
+          vid.addEventListener('loadeddata', tryPlay, { once: true });
+          tryPlay();
+        }
       } else if (!entry.isIntersecting) {
         vid.pause();
+        vid.playbackRate = 1;
       }
     }
   }, { root: feed, threshold: [0.6] });
@@ -3859,7 +4055,10 @@ function enterDouyinMode(startFile) {
     target.scrollIntoView({ behavior: 'auto', block: 'start' });
     const vid = target.querySelector('video');
     if (vid) {
-      if (!vid.src) vid.src = '/api/local/stream?path=' + encodeURIComponent(target.dataset.path);
+      if (!vid.getAttribute('src')) {
+        vid.preload = 'auto';
+        vid.src = '/api/local/stream?path=' + encodeURIComponent(target.dataset.path);
+      }
       feed.querySelectorAll('video').forEach(v => { if (v !== vid) v.pause(); });
       vid.muted = false;
       vid.play().catch(() => {});

@@ -237,7 +237,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
   .sidebar.open{left:0}
   .sidebar-overlay{position:fixed;top:52px;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:39;cursor:pointer}
   .main{padding:16px 12px 0}
-  .grid{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .card{border-radius:8px}
+  .card-info{padding:6px 8px}
+  .card-name{font-size:11px}
+  .card-meta{font-size:10px;margin-top:2px;gap:6px}
+  .card-tag{font-size:9px;padding:0 4px}
+  .card-clip-count{font-size:10px;margin-top:2px}
   #searchInput,.sort-wrap{display:none}
   .mobile-search-input{display:block;width:calc(100% - 32px);margin:6px 16px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
   .mobile-search-input:focus{border-color:var(--accent)}
